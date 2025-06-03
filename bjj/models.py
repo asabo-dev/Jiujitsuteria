@@ -16,3 +16,15 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
+class Entry(models.Model):
+    """Display and description of the technique."""
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    text = models.TextField()
+
+    class Meta:
+        verbose_name_plural = 'entries'
+
+    def __str__(self):
+        """Return a simple string representing the entry."""
+        return f"{self.text[:50]}..."
