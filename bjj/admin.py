@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Category, Entry
+from .models import Position, Technique, Guard
 
-admin.site.register(Category)
-admin.site.register(Entry)
+admin.site.register(Position)
+admin.site.register(Technique)
+admin.site.register(Guard)
