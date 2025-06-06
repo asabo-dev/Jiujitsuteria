@@ -2,20 +2,20 @@
 
 from django.db import models
 class Position(models.Model):
-    name = models.CharField(max_length=100)  # e.g. "Mount", "Side Control", "Standing"
+    position_name = models.CharField(max_length=100)  # e.g. "Mount", "Side Control", "Standing"
 
     def __str__(self):
-        return self.name
+        return self.position_name
 class Technique(models.Model):
-    name = models.CharField(max_length=100)  # e.g. "Sweep", "Escape", "Submission"
-
+    technique_name = models.CharField(max_length=100)  # e.g. "Sweep", "Escape", "Submission"
+    
     def __str__(self):
-        return self.name
+        return self.technique_name
 class Guard(models.Model):
-    name = models.CharField(max_length=100)  # e.g. "Closed Guard", "Dela Riva", "Butterfly"
+    guard_name = models.CharField(max_length=100)  # e.g. "Closed Guard", "Dela Riva", "Butterfly"
 
     def __str__(self):
-        return self.name
+        return self.guard_name
     
 class Video(models.Model):
     title = models.CharField(max_length=255)
