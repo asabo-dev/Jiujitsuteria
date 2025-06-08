@@ -43,3 +43,16 @@ def video_search(request):
     }
     
     return render(request, 'bjj/video_search.html', context)
+
+def video_detail(request, video_id):
+    """Display details for a specific video."""
+    try:
+        video = Video.objects.get(id=video_id)
+    except Video.DoesNotExist:
+        return render(request, 'bjj/video_not_found.html', {'video_id': video_id})
+
+    context = {
+        'video': video,
+    }
+    
+    return render(request, 'bjj/video_detail.html', context)

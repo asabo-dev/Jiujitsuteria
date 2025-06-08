@@ -1,23 +1,22 @@
 {% extends 'bjj/base.html' %}
 
 {% block content %}
+  <h2>Search Results</h2>
 
-<h2>Search Results</h2>
-
-{% if videos %}
-  <ul>
-    {% for video in videos %}
-      <li>
-        <strong>{{ video.title }}</strong><br>
-        <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
-        Position: {{ video.position.name }}<br>
-        Technique: {{ video.technique.name }}<br>
-        Guard: {{ video.guard.name }}
-      </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>No videos found matching your criteria.</p>
-{% endif %}
-
+  {% if videos %}
+    <ul>
+      {% for video in videos %}
+        <li>
+          <a href="{% url 'bjj:video_detail' video.id %}">
+            <strong>{{ video.title }}</strong>
+          </a><br>
+          Position: {{ video.position.name }}<br>
+          Technique: {{ video.technique.name }}<br>
+          Guard: {{ video.guard.name }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No videos found matching your criteria.</p>
+  {% endif %}
 {% endblock %}

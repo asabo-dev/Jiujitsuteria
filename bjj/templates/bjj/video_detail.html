@@ -1,0 +1,13 @@
+{% extends 'bjj/base.html' %}
+
+{% block content %}
+  <h2>{{ video.title }}</h2>
+
+  <p><strong>Position:</strong> {{ video.position.name }}</p>
+  <p><strong>Technique:</strong> {{ video.technique.name }}</p>
+  <p><strong>Guard:</strong> {{ video.guard.name }}</p>
+
+  <p><a href="{{ video.video_url }}" target="_blank">Watch the Video</a></p>
+
+  <p><a href="{% url 'bjj:videos' %}">← Back to Search Results</a></p>
+{% endblock %}

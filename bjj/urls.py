@@ -11,4 +11,6 @@ urlpatterns = [
     path('', views.index, name='index'),
     # Page that shows all videos.
     path('videos/', views.video_search, name='videos'),
+    # Detail page for a specific video.
+    path('videos/<int:video_id>/', views.video_detail, name='video_detail'),
 ]
