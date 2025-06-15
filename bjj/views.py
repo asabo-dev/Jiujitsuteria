@@ -1,58 +1,40 @@
-from django.shortcuts import render
-from .models import Video, Position, Technique, Guard
+from django.shortcuts import render, get_object_or_404
+from .models import Video, Position, Technique, Guard, Tag
+from django.db.models import Q
 
 def index(request):
-    positions = Position.objects.all()
-    techniques = Technique.objects.all()
-    guards = Guard.objects.all()
-
-    print("INDEX VIEW LOADED")  # Confirm this shows in your terminal
-
+    tags = Tag.objects.all()
     context = {
-        'positions': positions,
-        'techniques': techniques,
-        'guards': guards,
+        "positions": Position.objects.all(),
+        "techniques": Technique.objects.all(),
+        "guards": Guard.objects.all(),
+        "tags": tags,
     }
-    return render(request, 'bjj/index.html', context)
-    
-def video_search(request):
-    """Filter videos list for display."""
-    positions = Position.objects.all()
-    techniques = Technique.objects.all()
-    guards = Guard.objects.all()
+    return render(request, "bjj/index.html", context)
 
-    videos = Video.objects.all()
-
-    # Apply filters if parameters are present in the request
-    position = request.GET.get('position')
-    technique = request.GET.get('technique')
-    guard = request.GET.get('guard')
-
-    if position:
-        videos = videos.filter(position__name=position)
-    if technique:
-        videos = videos.filter(technique__name=technique)
-    if guard:
-        videos = videos.filter(guard__name=guard)
-
-    context = {
-        'positions': positions,
-        'techniques': techniques,
-        'guards': guards,
-        'videos': videos,
+def category_videos(request, category_type, category_id):
+    model_map = {
+        "position": Position,
+        "technique": Technique,
+        "guard": Guard
     }
-    
-    return render(request, 'bjj/video_search.html', context)
+    model = model_map.get(category_type)
+    if not model:
+        return render(request, "bjj/error.html", {"message": "Invalid category."})
 
-def video_detail(request, video_id):
-    """Display details for a specific video."""
-    try:
-        video = Video.objects.get(id=video_id)
-    except Video.DoesNotExist:
-        return render(request, 'bjj/video_not_found.html', {'video_id': video_id})
-
-    context = {
-        'video': video,
-    }
+    category = get_object_or_404(model, pk=category_id)
+    videos = Video.objects.filter(**{f"{category_type}": category})
     
-    return render(request, 'bjj/video_detail.html', context)
+    return render(request, "bjj/category_videos.html", {
+        "category_type": category_type,
+        "category": category,
+        "videos": videos,
+    })
+
+def tag_search(request):
+    query = request.GET.get("q")
+    videos = Video.objects.filter(tags__name__icontains=query).distinct()
+    return render(request, "bjj/tag_search_results.html", {
+        "query": query,
+        "videos": videos
+    })

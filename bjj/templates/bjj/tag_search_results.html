@@ -1,0 +1,19 @@
+{% extends 'bjj/base.html' %}
+
+{% block content %}
+<h2>Search Results for "{{ query }}"</h2>
+{% if videos %}
+  <ul>
+    {% for video in videos %}
+      <li>
+        <strong>{{ video.title }}</strong><br>
+        <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
+        Tags: {{ video.tags.all|join:", " }}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No videos matched your search.</p>
+{% endif %}
+
+{% endblock %}

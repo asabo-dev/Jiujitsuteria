@@ -2,18 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BJJ Video Library</title>
+    <title>Jiujitsuteria | BJJ Video Library</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        nav {
+            margin-bottom: 2rem;
+        }
+        nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007BFF;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #222;
+        }
+    </style>
 </head>
 <body>
+    <nav>
+        <a href="{% url 'bjj:index' %}">Home</a>
+        <!-- You can add more links as your app grows -->
+    </nav>
 
-    <p>
-        <a href="{% url 'bjj:index' %}">Brazilian Jiu-Jitsu</a> -
-        <a href="{% url 'bjj:videos' %}">Videos</a>
-    </p>
-
-    <!-- Content block where index.html or video_search.html renders -->
-    {% block content %}
-    {% endblock %}
-
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
 </body>
 </html>

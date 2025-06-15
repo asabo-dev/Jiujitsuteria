@@ -6,30 +6,34 @@
   Brazilian Jiu-Jitsu (BJJ) is a grappling-based martial art that focuses on ground fighting, submissions, and positional control. It evolved from traditional Japanese jiu-jitsu and judo and was developed in Brazil primarily by the Gracie family in the early 20th century.
 </p>
 
-<p>Video Search</p>
-
-<form method="GET" action="{% url 'bjj:videos' %}">
-    <select name="position">
-        <option value="">-- Select Position --</option>
+<h3>Browse by Category</h3>
+<ul>
+    <li>Positions:
+        <ul>
         {% for p in positions %}
-            <option value="{{ p.name }}">{{ p.name }}</option>
+            <li><a href="{% url 'bjj:category_videos' 'position' p.id %}">{{ p.name }}</a></li>
         {% endfor %}
-    </select>
-
-    <select name="technique">
-        <option value="">-- Select Technique --</option>
+        </ul>
+    </li>
+    <li>Techniques:
+        <ul>
         {% for t in techniques %}
-            <option value="{{ t.name }}">{{ t.name }}</option>
+            <li><a href="{% url 'bjj:category_videos' 'technique' t.id %}">{{ t.name }}</a></li>
         {% endfor %}
-    </select>
-
-    <select name="guard">
-        <option value="">-- Select Guard --</option>
+        </ul>
+    </li>
+    <li>Guards:
+        <ul>
         {% for g in guards %}
-            <option value="{{ g.name }}">{{ g.name }}</option>
+            <li><a href="{% url 'bjj:category_videos' 'guard' g.id %}">{{ g.name }}</a></li>
         {% endfor %}
-    </select>
+        </ul>
+    </li>
+</ul>
 
+<h3>Search by Tag</h3>
+<form method="get" action="{% url 'bjj:tag_search' %}">
+    <input type="text" name="q" placeholder="e.g. armbar, triangle, no-gi" />
     <button type="submit">Search</button>
 </form>
 
