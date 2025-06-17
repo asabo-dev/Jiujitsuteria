@@ -12,29 +12,56 @@ def index(request):
     }
     return render(request, "bjj/index.html", context)
 
-def category_videos(request, category_type, category_id):
-    model_map = {
-        "position": Position,
-        "technique": Technique,
-        "guard": Guard
-    }
-    model = model_map.get(category_type)
-    if not model:
-        return render(request, "bjj/error.html", {"message": "Invalid category."})
+def category_list(request, category_type):
+    if category_type == 'position':
+        categories = Position.objects.all()
+        label = 'Position'
+    elif category_type == 'technique':
+        categories = Technique.objects.all()
+        label = 'Technique'
+    elif category_type == 'guard':
+        categories = Guard.objects.all()
+        label = 'Guard'
+    else:
+        categories = []
+        label = 'Unknown'
 
-    category = get_object_or_404(model, pk=category_id)
-    videos = Video.objects.filter(**{f"{category_type}": category})
-    
-    return render(request, "bjj/category_videos.html", {
-        "category_type": category_type,
-        "category": category,
-        "videos": videos,
+    return render(request, 'bjj/category_list.html', {
+        'category_type': category_type,
+        'categories': categories,
+        'label': label,
     })
 
+def category_videos(request, category_type, category_id):
+    if category_type == 'position':
+        category = get_object_or_404(Position, id=category_id)
+        videos = Video.objects.filter(position=category)
+    elif category_type == 'technique':
+        category = get_object_or_404(Technique, id=category_id)
+        videos = Video.objects.filter(technique=category)
+    elif category_type == 'guard':
+        category = get_object_or_404(Guard, id=category_id)
+        videos = Video.objects.filter(guard=category)
+    else:
+        category = None
+        videos = Video.objects.none()
+
+    return render(request, 'bjj/category_videos.html', {
+        'category': category,
+        'videos': videos,
+        'category_type': category_type,
+    })
+
+
 def tag_search(request):
-    query = request.GET.get("q")
-    videos = Video.objects.filter(tags__name__icontains=query).distinct()
-    return render(request, "bjj/tag_search_results.html", {
-        "query": query,
-        "videos": videos
+    query = request.GET.get('q', '').strip().lower()
+    tags = query.replace(',', ' ').split()
+    videos = Video.objects.all()
+
+    for tag in tags:
+        videos = videos.filter(tags__icontains=tag)
+
+    return render(request, 'bjj/tag_search_results.html', {
+        'query': query,
+        'videos': videos,
     })
