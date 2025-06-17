@@ -1,18 +1,23 @@
 {% extends 'bjj/base.html' %}
 
 {% block content %}
-<h2>Videos for {{ category_type|title }}: {{ category.name }}</h2>
+
+<h2>{{ category.name }} Videos</h2>
+
 {% if videos %}
   <ul>
     {% for video in videos %}
       <li>
         <strong>{{ video.title }}</strong><br>
         <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
+        Tags: {{ video.tags }}
       </li>
     {% endfor %}
   </ul>
 {% else %}
-  <p>No videos found.</p>
+  <p>No videos available in this section yet.</p>
 {% endif %}
+
+<a href="{% url 'bjj:index' %}">← Back to Home</a>
 
 {% endblock %}

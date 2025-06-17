@@ -1,0 +1,15 @@
+{% extends 'bjj/base.html' %}
+
+{% block content %}
+
+<h2>{{ label }} Subcategories</h2>
+
+<ul>
+  {% for item in categories %}
+    <li>
+      <a href="{% url 'bjj:category_videos' category_type item.id %}">{{ item.name }}</a>
+    </li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

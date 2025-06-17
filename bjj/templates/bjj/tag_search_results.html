@@ -2,18 +2,20 @@
 
 {% block content %}
 <h2>Search Results for "{{ query }}"</h2>
+
 {% if videos %}
   <ul>
     {% for video in videos %}
       <li>
         <strong>{{ video.title }}</strong><br>
-        <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
-        Tags: {{ video.tags.all|join:", " }}
+        <a href="{{ video.video_url }}" target="_blank">Watch</a><br>
+        Tags: {{ video.tags }}
       </li>
     {% endfor %}
   </ul>
 {% else %}
-  <p>No videos matched your search.</p>
+  <p>No videos found matching those tags.</p>
 {% endif %}
 
+<a href="{% url 'bjj:index' %}">← Back to Home</a>
 {% endblock %}
