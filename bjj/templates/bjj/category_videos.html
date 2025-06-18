@@ -10,7 +10,15 @@
       <li>
         <strong>{{ video.title }}</strong><br>
         <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
-        Tags: {{ video.tags }}
+        
+        Tags:
+        {% if video.tags.exists %}
+          {% for tag in video.tags.all %}
+            <a href="{% url 'bjj:videos_by_tag' tag.id %}">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        {% else %}
+          No tags
+        {% endif %}
       </li>
     {% endfor %}
   </ul>

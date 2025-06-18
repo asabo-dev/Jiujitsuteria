@@ -29,12 +29,11 @@ class Tag(models.Model):
 class Video(models.Model):
     title = models.CharField(max_length=200)
     video_url = models.URLField()
-    tags = models.TextField(help_text="Comma-separated or space-separated tags like: arm_bar, prof_ali, no_gi")
+    tags = models.ManyToManyField(Tag, related_name='videos')
 
     position = models.ForeignKey('Position', on_delete=models.SET_NULL, null=True, blank=True)
     technique = models.ForeignKey('Technique', on_delete=models.SET_NULL, null=True, blank=True)
     guard = models.ForeignKey('Guard', on_delete=models.SET_NULL, null=True, blank=True)
 
-    def tag_list(self):
-        return [tag.strip().lower() for tag in self.tags.replace(',', ' ').split()]
-
+    def __str__(self):
+        return self.title

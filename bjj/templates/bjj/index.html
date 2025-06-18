@@ -11,41 +11,62 @@
 
 <h2>Explore by Category</h2>
 
-<div style="display: flex; flex-wrap: wrap; gap: 2rem;">
+<div>
 
   <!-- Position Section -->
-  <div style="flex: 1; min-width: 250px; background: #ffffff; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+  <div>
     <h3>Positions</h3>
     <p>Discover key BJJ positions like Mount, Side Control, and Back Control. Learn how to control and transition effectively.</p>
     <a href="{% url 'bjj:category_list' 'position' %}">
-      <button style="padding: 0.5rem 1rem;">Browse Positions</button>
+      <button>Browse Positions</button>
     </a>
+    <ul>
+      {% for pos in positions %}
+        <li><a href="{% url 'bjj:category_videos' 'position' pos.id %}">{{ pos.name }}</a></li>
+      {% empty %}
+        <li>No positions found.</li>
+      {% endfor %}
+    </ul>
   </div>
 
   <!-- Technique Section -->
-  <div style="flex: 1; min-width: 250px; background: #ffffff; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+  <div>
     <h3>Techniques</h3>
     <p>Explore techniques including submissions, sweeps, takedowns, and escapes to level up your grappling game.</p>
     <a href="{% url 'bjj:category_list' 'technique' %}">
-      <button style="padding: 0.5rem 1rem;">Browse Techniques</button>
+      <button>Browse Techniques</button>
     </a>
+    <ul>
+      {% for tech in techniques %}
+        <li><a href="{% url 'bjj:category_videos' 'technique' tech.id %}">{{ tech.name }}</a></li>
+      {% empty %}
+        <li>No techniques found.</li>
+      {% endfor %}
+    </ul>
   </div>
 
   <!-- Guard Section -->
-  <div style="flex: 1; min-width: 250px; background: #ffffff; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+  <div>
     <h3>Guards</h3>
     <p>Learn about different guard positions like Closed Guard, Butterfly, and De La Riva — and how to attack or defend from them.</p>
     <a href="{% url 'bjj:category_list' 'guard' %}">
-      <button style="padding: 0.5rem 1rem;">Browse Guards</button>
+      <button>Browse Guards</button>
     </a>
+    <ul>
+      {% for guard in guards %}
+        <li><a href="{% url 'bjj:category_videos' 'guard' guard.id %}">{{ guard.name }}</a></li>
+      {% empty %}
+        <li>No guards found.</li>
+      {% endfor %}
+    </ul>
   </div>
 
 </div>
 
-<h2 style="margin-top: 3rem;">Search by Tag</h2>
+<h2>Search by Tag</h2>
 <form method="get" action="{% url 'bjj:tag_search' %}">
-    <input type="text" name="q" placeholder="e.g. triangle, armbar, no-gi, sweep" style="padding: 0.5rem; width: 250px;" />
-    <button type="submit" style="padding: 0.5rem 1rem;">Search</button>
+  <input type="text" name="q" placeholder="e.g. triangle, armbar, no-gi, sweep" />
+  <button type="submit">Search</button>
 </form>
 
 {% endblock %}
