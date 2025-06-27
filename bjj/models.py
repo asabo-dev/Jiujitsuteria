@@ -41,9 +41,11 @@ class Video(models.Model):
 
     def cloudfront_url(self):
         """
-        Replace the S3 bucket prefix in the video_url with the CloudFront domain
-        defined in settings.py.
+        Replaces the S3 URL prefix with the CloudFront distribution domain.
+        Assumes videos are served using CloudFront.
         """
-        s3_prefix = " https://jiujitsuteria-videos.s3.amazonaws.com"  # 🔁 Replace this with your actual S3 bucket URL
+        s3_prefix = "https://jiujitsuteria-videos.s3.amazonaws.com"
         cloudfront_domain = getattr(settings, 'CLOUDFRONT_DOMAIN', '')
-        return self.video_url.replace(s3_prefix, f"{cloudfront_domain}/")
+        if self.video_url.startswith(s3_prefix):
+            return self.video_url.replace(s3_prefix, cloudfront_domain)
+        return self.video_url

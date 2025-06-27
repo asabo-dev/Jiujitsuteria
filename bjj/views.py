@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Q
+from django.core.paginator import Paginator
 from .models import Video, Position, Technique, Guard, Tag
 
 def index(request):
@@ -12,7 +12,6 @@ def index(request):
     }
     return render(request, "bjj/index.html", context)
 
-# Optional: Generic list view of all categories by type
 def category_list(request, category_type):
     if category_type == 'position':
         categories = Position.objects.all()
@@ -33,28 +32,31 @@ def category_list(request, category_type):
         'label': label,
     })
 
-# Unified view to show videos per category
 def category_videos(request, category_type, category_id):
     if category_type == 'position':
         category = get_object_or_404(Position, id=category_id)
-        videos = Video.objects.filter(position=category)
+        videos = Video.objects.filter(position=category).order_by('-id')
     elif category_type == 'technique':
         category = get_object_or_404(Technique, id=category_id)
-        videos = Video.objects.filter(technique=category)
+        videos = Video.objects.filter(technique=category).order_by('-id')
     elif category_type == 'guard':
         category = get_object_or_404(Guard, id=category_id)
-        videos = Video.objects.filter(guard=category)
+        videos = Video.objects.filter(guard=category).order_by('-id')
     else:
         category = None
         videos = Video.objects.none()
 
+    paginator = Paginator(videos, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'bjj/category_videos.html', {
         'category': category,
-        'videos': videos,
+        'videos': page_obj,
         'category_type': category_type,
     })
 
-# Optional: Direct views per category (if needed for easy linking)
+# Optional direct views
 def videos_by_position(request, position_id):
     position = get_object_or_404(Position, id=position_id)
     videos = Video.objects.filter(position=position)
@@ -82,7 +84,6 @@ def videos_by_guard(request, guard_id):
         'category_type': 'guard',
     })
 
-# ✅ Tag-based video search (works with ManyToManyField)
 def tag_search(request):
     query = request.GET.get('q', '').strip().lower()
     tag_terms = query.replace(',', ' ').split()
@@ -91,16 +92,25 @@ def tag_search(request):
     if tag_terms:
         videos = videos.filter(tags__name__in=tag_terms).distinct()
 
+    paginator = Paginator(videos, 12)  # 12 videos per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'bjj/tag_search_results.html', {
         'query': query,
-        'videos': videos,
+        'videos': page_obj,
     })
 
 def videos_by_tag(request, tag_id):
     tag = get_object_or_404(Tag, id=tag_id)
-    videos = tag.videos.all()
+    videos = tag.videos.all().order_by('-id')  # Optional: newest first
+
+    paginator = Paginator(videos, 12)  # 12 videos per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'bjj/tag_search_results.html', {
         'query': tag.name,
-        'videos': videos,
+        'tag': tag,
+        'videos': page_obj,
     })
-# This code is part of the views.py file for a Django application that handles Brazilian Jiu-Jitsu (BJJ) video content.
