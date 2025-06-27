@@ -1,31 +1,58 @@
 {% extends 'bjj/base.html' %}
 
 {% block content %}
-
-<h2>{{ category.name }} Videos</h2>
+<div class="text-center mb-4">
+  <h2 class="text-yellow">{{ category.name }} Videos</h2>
+</div>
 
 {% if videos %}
-  <ul>
+  <div class="row justify-content-center">
     {% for video in videos %}
-      <li>
-        <strong>{{ video.title }}</strong><br>
-        <a href="{{ video.video_url }}" target="_blank">Watch Video</a><br>
-        
-        Tags:
-        {% if video.tags.exists %}
-          {% for tag in video.tags.all %}
-            <a href="{% url 'bjj:videos_by_tag' tag.id %}">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}
-          {% endfor %}
-        {% else %}
-          No tags
-        {% endif %}
-      </li>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card bg-dark text-white h-100 border border-yellow shadow">
+          <div class="card-body">
+            <h5 class="card-title text-yellow">{{ video.title }}</h5>
+            <video class="w-100 mb-3 rounded" controls>
+              <source src="{{ video.cloudfront_url }}" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+
+            <p class="card-text">
+              <strong>Tags:</strong><br>
+              {% if video.tags.exists %}
+                {% for tag in video.tags.all %}
+                  <a href="{% url 'bjj:videos_by_tag' tag.id %}" class="tag-link">
+                    {{ tag.name }}
+                  </a>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">No tags</span>
+              {% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
 {% else %}
-  <p>No videos available in this section yet.</p>
+  <p class="text-center">No videos available in this section yet.</p>
 {% endif %}
 
-<a href="{% url 'bjj:index' %}">← Back to Home</a>
+<div class="text-center mt-4">
+  <a href="{% url 'bjj:index' %}" class="btn btn-yellow">← Back to Home</a>
+</div>
 
+<style>
+  .tag-link {
+    color: white;
+    text-decoration: none;
+    margin-right: 8px;
+    transition: color 0.3s ease;
+  }
+
+  .tag-link:hover {
+    color: #ffc107;
+    text-decoration: underline;
+  }
+</style>
 {% endblock %}

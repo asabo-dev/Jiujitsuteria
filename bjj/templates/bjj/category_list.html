@@ -1,21 +1,27 @@
 {% extends 'bjj/base.html' %}
 
 {% block content %}
-<h2>{{ label }} Subcategories</h2>
+<div class="text-center">
+    <h2 class="text-yellow">{{ label }} Subcategories</h2>
+</div>
 
 {% if categories %}
-  <div>
+  <div class="row justify-content-center mt-4">
     {% for item in categories %}
-      <a href="{% url 'bjj:category_videos' category_type item.id %}">
-        {{ item.name }}
-      </a><br>
+      <div class="col-md-4 mb-3">
+        <div class="p-3 border border-light rounded text-center">
+          <a href="{% url 'bjj:category_videos' category_type item.id %}" class="text-yellow h5 d-block">
+            {{ item.name }}
+          </a>
+        </div>
+      </div>
     {% endfor %}
   </div>
 {% else %}
-  <p>No {{ label|lower }}s available.</p>
+  <p class="text-center">No {{ label|lower }}s available.</p>
 {% endif %}
 
-<p>
-  <a href="{% url 'bjj:index' %}">← Back to Home</a>
-</p>
+<div class="text-center mt-4">
+  <a href="{% url 'bjj:index' %}" class="btn btn-yellow">← Back to Home</a>
+</div>
 {% endblock %}

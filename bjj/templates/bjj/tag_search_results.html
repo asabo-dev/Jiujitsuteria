@@ -1,36 +1,45 @@
 {% extends 'bjj/base.html' %}
 
 {% block content %}
-
-<h2>Videos Tagged: "{{ tag.name }}"</h2>
+<div class="text-center mb-4">
+  <h2 class="text-yellow">Videos Tagged: "{{ tag.name }}"</h2>
+</div>
 
 {% if videos %}
-  <ul>
+  <div class="row justify-content-center">
     {% for video in videos %}
-      <li>
-        <h3>{{ video.title }}</h3>
-        <video controls>
-          <source src="{{ video.video_url }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card bg-dark text-white h-100 border border-yellow shadow">
+          <div class="card-body">
+            <h5 class="card-title text-yellow">{{ video.title }}</h5>
+            <video class="w-100 mb-3 rounded" controls>
+              <source src="{{ video.cloudfront_url }}" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
 
-        {% if video.tags.exists %}
-          <p>
-            <strong>Tags:</strong>
-            {% for tag in video.tags.all %}
-              <a href="{% url 'bjj:videos_by_tag' tag.id %}">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}
-            {% endfor %}
-          </p>
-        {% else %}
-          <p><em>No tags</em></p>
-        {% endif %}
-      </li>
+            <p class="card-text">
+              <strong>Tags:</strong><br>
+              {% if video.tags.exists %}
+                {% for tag in video.tags.all %}
+                  <a href="{% url 'bjj:videos_by_tag' tag.id %}"
+                     class="text-white text-decoration-none me-2 tag-link">
+                    {{ tag.name }}
+                  </a>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">No tags</span>
+              {% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
 {% else %}
-  <p>No videos found for this tag.</p>
+  <p class="text-center text-white">No videos found for this tag.</p>
 {% endif %}
 
-<p><a href="{% url 'bjj:index' %}">← Back to Home</a></p>
-
+<div class="text-center mt-4">
+  <a href="{% url 'bjj:index' %}" class="btn btn-yellow">← Back to Home</a>
+</div>
 {% endblock %}
