@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="text-center mb-4">
-  <h2 class="text-yellow">Videos Tagged: "{{ tag.name }}"</h2>
+  <h2 class="text-yellow">Search Results for: "{{ query }}"</h2>
 </div>
 
 {% if videos %}
@@ -21,8 +21,7 @@
               <strong>Tags:</strong><br>
               {% if video.tags.exists %}
                 {% for tag in video.tags.all %}
-                  <a href="{% url 'bjj:videos_by_tag' tag.id %}"
-                     class="text-white text-decoration-none me-2 tag-link">
+                  <a href="{% url 'bjj:videos_by_tag' tag.id %}" class="tag-link">
                     {{ tag.name }}
                   </a>
                 {% endfor %}
@@ -35,6 +34,38 @@
       </div>
     {% endfor %}
   </div>
+
+  <!-- 🔸 Pagination -->
+  <div class="text-center mt-4">
+    <nav>
+      <ul class="pagination justify-content-center">
+        {% if videos.has_previous %}
+          <li class="page-item">
+            <a class="page-link custom-page-link" href="?q={{ query }}&page={{ videos.previous_page_number }}">← Prev</a>
+          </li>
+        {% endif %}
+
+        {% for page_num in videos.paginator.page_range %}
+          {% if page_num == videos.number %}
+            <li class="page-item active">
+              <span class="page-link custom-page-link-active">{{ page_num }}</span>
+            </li>
+          {% else %}
+            <li class="page-item">
+              <a class="page-link custom-page-link" href="?q={{ query }}&page={{ page_num }}">{{ page_num }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if videos.has_next %}
+          <li class="page-item">
+            <a class="page-link custom-page-link" href="?q={{ query }}&page={{ videos.next_page_number }}">Next →</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+
 {% else %}
   <p class="text-center text-white">No videos found for this tag.</p>
 {% endif %}
@@ -42,4 +73,43 @@
 <div class="text-center mt-4">
   <a href="{% url 'bjj:index' %}" class="btn btn-yellow">← Back to Home</a>
 </div>
+
+<!-- Optional styling override -->
+<style>
+  .tag-link {
+    color: white;
+    text-decoration: none;
+    margin-right: 8px;
+    transition: color 0.3s ease;
+  }
+
+  .tag-link:hover {
+    color: #ffc107;
+    text-decoration: underline;
+  }
+
+  .pagination .page-item .custom-page-link {
+    background-color: #000;
+    color: #FFD700;
+    border: 1px solid #FFD700;
+    padding: 0.5rem 0.75rem;
+    margin: 0 3px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+  }
+
+  .pagination .page-item .custom-page-link:hover {
+    background-color: #FFD700;
+    color: #000;
+    text-decoration: none;
+  }
+
+  .pagination .page-item.active .custom-page-link-active {
+    background-color: #FFD700;
+    color: #000;
+    border: 1px solid #FFD700;
+    padding: 0.5rem 0.75rem;
+    border-radius: 5px;
+  }
+</style>
 {% endblock %}
