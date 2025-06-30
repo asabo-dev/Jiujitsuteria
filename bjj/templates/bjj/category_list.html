@@ -1,24 +1,26 @@
 {% extends 'bjj/base.html' %}
-
 {% block content %}
-<div class="text-center">
-    <h2 class="text-yellow">{{ label }} Subcategories</h2>
+<div class="text-center mb-4">
+  <h2 class="text-yellow">{{ label }} Subcategories</h2>
 </div>
 
 {% if categories %}
-  <div class="row justify-content-center mt-4">
+  <div class="row justify-content-center">
     {% for item in categories %}
       <div class="col-md-4 mb-3">
-        <div class="p-3 border border-light rounded text-center">
-          <a href="{% url 'bjj:category_videos' category_type item.id %}" class="text-yellow h5 d-block">
-            {{ item.name }}
-          </a>
-        </div>
+        <a href="{% url 'bjj:category_videos' category_type item.id %}" class="text-decoration-none">
+          <div class="card bg-dark text-white border border-yellow shadow">
+            <div class="card-body text-center">
+              <h5 class="card-title text-yellow">{{ item.name }}</h5>
+              <p class="card-text">{{ item.video_count }} video{{ item.video_count|pluralize }}</p>
+            </div>
+          </div>
+        </a>
       </div>
     {% endfor %}
   </div>
 {% else %}
-  <p class="text-center">No {{ label|lower }}s available.</p>
+  <p class="text-white text-center">No {{ label|lower }}s available.</p>
 {% endif %}
 
 <div class="text-center mt-4">

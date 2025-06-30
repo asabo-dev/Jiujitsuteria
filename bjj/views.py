@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from .models import Video, Position, Technique, Guard, Tag
+from django.db.models import Count
 
 def index(request):
     tags = Tag.objects.all()
@@ -14,13 +15,13 @@ def index(request):
 
 def category_list(request, category_type):
     if category_type == 'position':
-        categories = Position.objects.all()
+        categories = Position.objects.annotate(video_count=Count('video'))
         label = 'Position'
     elif category_type == 'technique':
-        categories = Technique.objects.all()
+        categories = Technique.objects.annotate(video_count=Count('video'))
         label = 'Technique'
     elif category_type == 'guard':
-        categories = Guard.objects.all()
+        categories = Guard.objects.annotate(video_count=Count('video'))
         label = 'Guard'
     else:
         categories = []
