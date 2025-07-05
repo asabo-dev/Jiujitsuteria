@@ -58,10 +58,10 @@ WSGI_APPLICATION = 'jiujitsuteria.wsgi.application'
 # Database configuration
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')
+        default='postgres://rylshadow:#Imohtep347@jiujitsuteria-db.c7as4o68kljl.ap-southeast-1.rds.amazonaws.com:5432/jiujitsuteria-db',
+        conn_max_age=600
     )
 }
-
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
