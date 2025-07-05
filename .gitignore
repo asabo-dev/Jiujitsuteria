@@ -1,14 +1,59 @@
-.env
-.DS_Store
-# Ignore macOS system files
+# ========================
+# macOS System Files
+# ========================
 .DS_Store
 
-# Ignore Python bytecode
+# ========================
+# Python
+# ========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
 
-# Ignore virtual environments
+# ========================
+# Django
+# ========================
+*.sqlite3
+*.log
+*.pot
+*.pyc
+.env
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+
+# ========================
+# Virtual Environment
+# ========================
+venv/
 bjj-env/
 
-# Ignore staticfiles output
-staticfiles/
+# ========================
+# VSCode
+# ========================
+.vscode/
+.history/
+
+# ========================
+# Operating System
+# ========================
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# ========================
+# Node.js (if used for front-end tools like Tailwind or Webpack)
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml

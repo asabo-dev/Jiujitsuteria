@@ -96,6 +96,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CloudFront
 CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN', 'https://d3ix9aup7044ea.cloudfront.net')
 
-print("DEBUG =", DEBUG)
-print("ALLOWED_HOSTS =", ALLOWED_HOSTS)
+#print("DEBUG =", DEBUG)
+#print("ALLOWED_HOSTS =", ALLOWED_HOSTS)
 # Ensure that the static files are served correctly
