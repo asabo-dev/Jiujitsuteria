@@ -1,2 +1,14 @@
 .env
 .DS_Store
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore virtual environments
+bjj-env/
+
+# Ignore staticfiles output
+staticfiles/
