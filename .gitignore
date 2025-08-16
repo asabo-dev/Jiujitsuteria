@@ -19,11 +19,14 @@ pip-wheel-metadata/
 # Django
 # ========================
 *.sqlite3
+*.sqlite3-*
 *.log
 *.pot
 *.pyc
 .env
 db.sqlite3
+db.sqlite3.bak
+db_edit.sqbpro
 media/
 staticfiles/
 local_settings.py
@@ -32,6 +35,7 @@ local_settings.py
 # Virtual Environment
 # ========================
 venv/
+env/
 bjj-env/
 
 # ========================
@@ -57,3 +61,12 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 pnpm-lock.yaml
+
+# ========================
+# Project-specific
+# ========================
+project_control_files/
+utils/
+aws_upload.py
+aws_upload_and_save.py
+bjj_video_storage_upload_updated.py
