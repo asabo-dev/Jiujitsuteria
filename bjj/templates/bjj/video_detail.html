@@ -1,0 +1,35 @@
+{% extends "bjj/base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h2 class="mb-4 text-center">{{ video.title }}</h2>
+
+        <div class="ratio ratio-16x9 mb-4">
+            <video controls>
+                <source src="{{ video.cloudfront_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        {% if video.tags.exists %}
+        <div class="mb-4">
+            <h5>Tags:</h5>
+            <div class="d-flex flex-wrap gap-2">
+                {% for tag in video.tags.all %}
+                <a href="{% url 'bjj:videos_by_tag' tag_id=tag.id %}" class="btn btn-outline-secondary btn-sm">
+                    {{ tag.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted fst-italic">No tags assigned to this video.</p>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="{% url 'bjj:index' %}" class="btn btn-link">&larr; Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
