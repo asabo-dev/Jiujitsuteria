@@ -1,0 +1,37 @@
+{% extends "bjj/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card bg-dark text-white border border-yellow shadow">
+        <div class="card-body p-4">
+          <h2 class="text-center text-yellow mb-4">Staff Login</h2>
+
+          {% if form.errors %}
+            <div class="alert alert-danger text-center">
+              Invalid username or password. Please try again.
+            </div>
+          {% endif %}
+
+          <form method="post" action="{% url 'accounts:login' %}">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label text-yellow">Username</label>
+              {{ form.username }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-yellow">Password</label>
+              {{ form.password }}
+            </div>
+            <div class="d-grid">
+              <button type="submit" class="btn btn-yellow">Login</button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

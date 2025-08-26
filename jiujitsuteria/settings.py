@@ -20,7 +20,9 @@ STATICFILES_DIRS = [BASE_DIR / 'bjj' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 INSTALLED_APPS = [
+    # My apps
     'bjj',
+    'accounts',
 
     # Django core apps
     'django.contrib.admin',
@@ -71,3 +73,8 @@ DATABASES = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# My settings
+LOGIN_REDIRECT_URL = "/"        # where staff go after login (e.g., homepage)
+LOGOUT_REDIRECT_URL = "bjj:index"       # where users go after logout
+LOGIN_URL = "/accounts/login/"  # where to redirect unauthenticated users

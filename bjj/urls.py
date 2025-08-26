@@ -16,4 +16,7 @@ urlpatterns = [
 
     # Video detail
     path('video/<int:video_id>/', views.video_detail, name='video_detail'),
+
+    # Video upload (staff only)
+    path('upload/', views.upload_video, name='upload'),
 ]

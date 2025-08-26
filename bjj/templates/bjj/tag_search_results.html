@@ -12,19 +12,22 @@
         <div class="card bg-dark text-white h-100 border border-yellow shadow">
           <div class="card-body">
             <h5 class="card-title text-yellow">{{ video.title }}</h5>
-            <video class="w-100 mb-3 rounded" controls>
-              <source src="{{ video.cloudfront_url }}" type="video/mp4">
+
+            <video class="w-100 mb-3 rounded" controls title="{{ video.title }}">
+              <source src="{{ video.video_url }}?v={{ video.updated_at|date:'U' }}" type="video/mp4">
               Your browser does not support the video tag.
             </video>
 
             <p class="card-text">
               <strong>Tags:</strong><br>
               {% if video.tags.exists %}
-                {% for tag in video.tags.all %}
-                  <a href="{% url 'bjj:videos_by_tag' tag.id %}" class="tag-link">
-                    {{ tag.name }}
-                  </a>
-                {% endfor %}
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  {% for tag in video.tags.all %}
+                    <a href="{% url 'bjj:videos_by_tag' tag.id %}" class="btn btn-outline-warning btn-sm">
+                      {{ tag.name }}
+                    </a>
+                  {% endfor %}
+                </div>
               {% else %}
                 <span class="text-muted">No tags</span>
               {% endif %}
@@ -73,18 +76,6 @@
 </div>
 
 <style>
-  .tag-link {
-    color: white;
-    text-decoration: none;
-    margin-right: 8px;
-    transition: color 0.3s ease;
-  }
-
-  .tag-link:hover {
-    color: #ffc107;
-    text-decoration: underline;
-  }
-
   .pagination .page-item .custom-page-link {
     background-color: #000;
     color: #FFD700;

@@ -13,7 +13,35 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="{% static 'bjj/styles_position_v2.css' %}">
     
-    
+    <style>
+        /* Ensure body takes full height */
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex: 1; /* pushes footer down */
+        }
+        footer {
+            background: #f8f9fa; /* light gray background */
+            padding: 10px 0;
+        }
+        /* Make logout button look like a normal nav-link */
+        .logout-btn {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            color: inherit;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
 
@@ -29,6 +57,21 @@
                 <li class="nav-item"><a class="nav-link" href="{% url 'bjj:category_list' 'position' %}">Positions</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'bjj:category_list' 'technique' %}">Techniques</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'bjj:category_list' 'guard' %}">Guards</a></li>
+
+                <!-- 🔑 Auth / Staff-only Upload Links -->
+                {% if user.is_authenticated %}
+                    {% if user.is_staff %}
+                        <li class="nav-item"><a href="{% url 'bjj:upload' %}" class="nav-link">Upload</a></li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link logout-btn">Logout</button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item"><a href="{% url 'accounts:login' %}" class="nav-link">Staff Login</a></li>
+                {% endif %}
             </ul>
         </div>
     </div>
@@ -40,8 +83,8 @@
     {% endblock %}
 </main>
 
-<!-- Footer -->
-<footer class="footer text-center">
+<!-- Sticky Footer -->
+<footer class="footer text-center mt-auto">
     <div class="container">
         &copy; {{ year|default:"2025" }} Jiujitsuteria — Built with ❤️ for BJJ by @efiom_jnr
     </div>

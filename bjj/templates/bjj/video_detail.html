@@ -7,7 +7,7 @@
 
         <div class="ratio ratio-16x9 mb-4">
             <video controls>
-                <source src="{{ video.cloudfront_url }}" type="video/mp4">
+                <source src="{{ video.video_url }}?v={{ video.updated_at|date:'U' }}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         </div>
