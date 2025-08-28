@@ -11,6 +11,8 @@ bjj-env/
 # Env & secrets
 .env
 *.pem
+.env.prod
+.env.dev
 
 # Databases
 *.sqlite3

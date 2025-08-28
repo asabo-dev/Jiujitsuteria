@@ -1,0 +1,60 @@
+/* styles.css */
+body {
+    background-color: #000;
+    color: #fff;
+}
+
+.navbar, .footer {
+    background-color: #000;
+}
+
+.text-yellow,
+.navbar-brand,
+.nav-link,
+h1, h2, h3, h4, h5 {
+    color: #FFD700 !important;
+}
+
+.btn-yellow {
+    background-color: #FFD700;
+    color: #000;
+    border: none;
+}
+
+.btn-yellow:hover {
+    background-color: #e6c200;
+    color: #000;
+}
+
+a {
+    color: #FFD700;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    color: #ccc;
+    font-size: 0.9rem;
+    padding: 1rem 0;
+}
+
+.border-yellow {
+    border-color: #FFD700 !important;
+}
+
+.tag-link {
+    color: white;
+    background: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+.tag-link:hover {
+    color: #FFD700;
+    text-decoration: underline;
+}
