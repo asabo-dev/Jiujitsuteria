@@ -1,10 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environments
 venv/
 .venv/
-__pycache__/
-*.pyc
+bjj-env/
+
+# Env & secrets
 .env
 *.pem
+
+# Databases
 *.sqlite3
+db.sqlite3
+
+# Django static/media
 /staticfiles/
 /media/
 
+# Logs & caches
+*.log
+*.pot
+.DS_Store
+
+# IDEs
+.vscode/
+
+# Requirements (only keep tracked ones)
+!requirements.txt
+!requirements.lock
