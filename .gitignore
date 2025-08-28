@@ -1,72 +1,10 @@
-# ========================
-# macOS System Files
-# ========================
-.DS_Store
-
-# ========================
-# Python
-# ========================
+venv/
+.venv/
 __pycache__/
-*.py[cod]
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-pip-wheel-metadata/
-
-# ========================
-# Django
-# ========================
-*.sqlite3
-*.sqlite3-*
-*.log
-*.pot
 *.pyc
 .env
-db.sqlite3
-db.sqlite3.bak
-db_edit.sqbpro
-media/
-staticfiles/
-local_settings.py
+*.pem
+*.sqlite3
+/staticfiles/
+/media/
 
-# ========================
-# Virtual Environment
-# ========================
-venv/
-env/
-bjj-env/
-
-# ========================
-# VSCode
-# ========================
-.vscode/
-.history/
-
-# ========================
-# Operating System
-# ========================
-Thumbs.db
-ehthumbs.db
-Icon?
-Desktop.ini
-
-# ========================
-# Node.js (if used for front-end tools like Tailwind or Webpack)
-# ========================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-pnpm-lock.yaml
-
-# ========================
-# Project-specific
-# ========================
-project_control_files/
-utils/
-aws_upload.py
-aws_upload_and_save.py
-bjj_video_storage_upload_updated.py
