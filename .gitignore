@@ -24,6 +24,10 @@ db.sqlite3
 /staticfiles/
 /media/
 
+# Django collected static files
+/staticfiles/
+jiujitsuteria/staticfiles/
+
 # Ignore test scripts
 test_cf_key.py
 /scripts/
