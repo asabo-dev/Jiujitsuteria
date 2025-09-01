@@ -24,6 +24,8 @@ db.sqlite3
 /staticfiles/
 /media/
 
+# Ignore Django static files
+jiujitsuteria/static/
 # Django collected static files
 /staticfiles/
 jiujitsuteria/staticfiles/
