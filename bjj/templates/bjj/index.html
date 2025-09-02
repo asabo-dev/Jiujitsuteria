@@ -5,12 +5,77 @@
 <div class="container-fluid bg-black text-white min-vh-100 py-5">
   <div class="container">
 
+    <!-- Hero Section -->
     <h1 class="text-warning mb-4">Welcome to Jiujitsuteria</h1>
-    <p class="mb-5">
-      Brazilian Jiu-Jitsu (BJJ) is a grappling-based martial art that focuses on ground fighting, submissions, and positional control.
-      It evolved from traditional Japanese jiu-jitsu and judo and was developed in Brazil primarily by the Gracie family in the early 20th century.
+
+    <!-- Intro Paragraphs -->
+    <p>
+      Brazilian Jiu-Jitsu (BJJ) is a grappling martial art that emphasizes ground control, 
+      submissions, and technique over strength. Rooted in traditional Japanese jiu-jitsu and judo, 
+      it was further developed in Brazil in the early 20th century, most notably by the Gracie family.
     </p>
 
+    <p>
+      <strong class="text-warning">Jiujitsuteria</strong> is my personal library of BJJ techniques, 
+      built from real class recordings during my own training journey. The videos are simple, 
+      practice-focused clips—capturing techniques as they were demonstrated and drilled—so while 
+      the production quality is modest, the value lies in their authenticity and practicality.
+    </p>
+
+    <!-- How to Use Section -->
+    <h2 class="text-warning mt-5 mb-4">How to Use This Website</h2>
+    <div class="row g-4 mb-5">
+      
+      <!-- Browse by Category -->
+      <div class="col-md-4">
+        <div class="card bg-dark text-white h-100 border-warning text-center">
+          <div class="card-body">
+            <i class="bi bi-collection-play text-warning display-4 mb-3"></i>
+            <h3 class="card-title text-warning">Browse by Category</h3>
+            <p class="card-text">
+              Techniques are grouped into clear categories 
+              (positions, submissions, guards, etc.) for easy exploration.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search by Tags -->
+      <div class="col-md-4">
+        <div class="card bg-dark text-white h-100 border-warning text-center">
+          <div class="card-body">
+            <i class="bi bi-search text-warning display-4 mb-3"></i>
+            <h3 class="card-title text-warning">Search by Tags</h3>
+            <p class="card-text">
+              Use the search bar to quickly find techniques. 
+              For example, typing <em>“armbar, closed guard”</em> will display 
+              all videos matching those tags.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Reference -->
+      <div class="col-md-4">
+        <div class="card bg-dark text-white h-100 border-warning text-center">
+          <div class="card-body">
+            <i class="bi bi-lightning-charge text-warning display-4 mb-3"></i>
+            <h3 class="card-title text-warning">Quick Reference</h3>
+            <p class="card-text">
+              Whether you’re revisiting familiar moves or refreshing before class, 
+              you can pull up techniques in seconds.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="mb-5">
+      This site was created first as a study tool for myself—but I hope it also serves as a useful 
+      reference for anyone looking to review and deepen their BJJ knowledge.
+    </p>
+
+    <!-- Explore by Category Section -->
     <h2 class="text-warning mb-4">Explore by Category</h2>
     <div class="row g-4">
 
@@ -21,7 +86,8 @@
             <h3 class="card-title text-warning">Positions</h3>
             <p class="card-text">
               Maintaining dominant positional control is a core principle in Brazilian Jiu-Jitsu.
-              This section focuses on techniques executed from key positions such as mount, side control, turtle, and others—emphasizing control, pressure, and strategic transitions.
+              This section focuses on techniques executed from key positions such as mount, side control, 
+              turtle, and others—emphasizing control, pressure, and strategic transitions.
             </p>
             <a href="{% url 'bjj:category_list' 'position' %}" class="btn btn-warning mt-2">Browse Positions</a>
           </div>
@@ -34,8 +100,8 @@
           <div class="card-body">
             <h3 class="card-title text-warning">Techniques</h3>
             <p class="card-text">
-              Explore submissions, sweeps, takedowns, escapes, and drills to build a complete skillset for sport or self-defense.
-              Techniques emphasize timing, leverage, and technical execution.
+              Explore submissions, sweeps, takedowns, escapes, and drills to build a complete skillset 
+              for sport or self-defense. Techniques emphasize timing, leverage, and technical execution.
             </p>
             <a href="{% url 'bjj:category_list' 'technique' %}" class="btn btn-warning mt-2">Browse Techniques</a>
           </div>
@@ -48,7 +114,8 @@
           <div class="card-body">
             <h3 class="card-title text-warning">Guards</h3>
             <p class="card-text">
-              Learn how to use guard positions like Closed Guard, Butterfly, and De La Riva to defend, attack, and transition with control and creativity.
+              Learn how to use guard positions like Closed Guard, Butterfly, and De La Riva to defend, 
+              attack, and transition with control and creativity.
             </p>
             <a href="{% url 'bjj:category_list' 'guard' %}" class="btn btn-warning mt-2">Browse Guards</a>
           </div>
@@ -58,6 +125,7 @@
 
     <hr class="border-warning my-5" />
 
+    <!-- Search Section -->
     <h2 class="text-warning mb-3">Search by Tag</h2>
     <form method="get" action="{% url 'bjj:tag_search' %}" class="d-flex gap-2">
       <input type="text" name="q" class="form-control" placeholder="e.g. triangle, armbar, no-gi, sweep">
