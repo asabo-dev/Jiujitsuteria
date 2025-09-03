@@ -7,44 +7,38 @@ __pycache__/
 venv/
 .venv/
 bjj-env/
-# Ignore environment files
-.env*
 
 # Env & secrets
 .env
+.env.*
 *.pem
-.env.prod
-.env.dev
 
 # Databases
 *.sqlite3
 db.sqlite3
 
-# Django static/media
-/staticfiles/
-/media/
-/static/
+# Django Static & Media
 
+# Collected static files
+staticfiles/
 
-# Ignore Django static files
-jiujitsuteria/static/
-# Django collected static files
-/staticfiles/
-jiujitsuteria/staticfiles/
+# Uploaded media 
+media/
 
-# Ignore test scripts
-test_cf_key.py
-/scripts/
-
-
-# Logs & caches
+# Logs & Caches
 *.log
 *.pot
 .DS_Store
 
-# IDEs
+# IDEs & Editors
 .vscode/
+.idea/
 
-# Requirements (only keep tracked ones)
+# Project-specific
+test_cf_key.py
+scripts/
+
+# Requirements (only keep locked/tracked ones)
 !requirements.txt
 !requirements.lock
+

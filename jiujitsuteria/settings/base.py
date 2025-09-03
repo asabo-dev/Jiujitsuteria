@@ -81,9 +81,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============================================================================
 # Static & Media Files
 # =============================================================================
+# URL to use when referring to static files
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'staticfiles']  # <-- point here
-STATIC_ROOT = BASE_DIR / 'static'  # collected static files for deployment
+
+# Where Django will look for additional static files (before collectstatic)
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Project-wide static (favicon, global images/css/js)
+]
+
+# Where collectstatic will put all files (for production serving)
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media (user uploads) - local dev only
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 
 
 LOGIN_REDIRECT_URL = "/"
