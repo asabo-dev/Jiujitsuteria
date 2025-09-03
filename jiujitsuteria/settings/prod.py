@@ -29,12 +29,11 @@ DATABASES = {
 # Static Files
 # ---------------------
 STATIC_URL = "/static/"
+
+# Location where collectstatic will gather everything
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# Add your app’s static folder so collectstatic finds styles/js
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR.parent, "bjj", "static"),
-]
+# (STATICFILES_DIRS is already defined in base.py, so no need to redefine here)
 
 # ---------------------
 # Media Files (S3/CloudFront)
@@ -66,6 +65,5 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-⚠️ Enable only after HTTPS / Route53 + SSL certs are set up
+# ⚠️ Enable only after HTTPS / Route53 + SSL certs are set up
 SECURE_SSL_REDIRECT = True
-
