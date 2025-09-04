@@ -1,22 +1,22 @@
 from .base import *
-from .utils import load_env_file
 import os
 import dj_database_url
 
-# ---------------------
-# Load environment variables
-# ---------------------
-load_env_file(".env.prod", str(BASE_DIR.parent))
+# =============================================================================
+# Environment
+# =============================================================================
+# Load environment variables from .env.prod
+from .utils import load_env_file
+load_env_file(".env.prod", str(BASE_DIR))
 
-# ---------------------
-# Core Django Settings
-# ---------------------
 DEBUG = False
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
 
-# ---------------------
+# Allowed hosts (set in .env.prod)
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+
+# =============================================================================
 # Database
-# ---------------------
+# =============================================================================
 DATABASES = {
     "default": dj_database_url.config(
         default=os.environ.get("DATABASE_URL"),
@@ -25,45 +25,41 @@ DATABASES = {
     )
 }
 
-# ---------------------
-# Static Files
-# ---------------------
+# =============================================================================
+# Static & Media (Production)
+# =============================================================================
+# Collected static files
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Location where collectstatic will gather everything
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# Media (user uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# (STATICFILES_DIRS is already defined in base.py, so no need to redefine here)
+# Whitenoise for static files in production
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# ---------------------
-# Media Files (S3/CloudFront)
-# ---------------------
-CLOUDFRONT_DOMAIN = os.getenv("CLOUDFRONT_DOMAIN")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "ap-southeast-1")
-
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
-if CLOUDFRONT_DOMAIN:
-    MEDIA_URL = f"https://{CLOUDFRONT_DOMAIN}/"
-else:
-    MEDIA_URL = (
-        f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
-    )
-
-# ---------------------
+# =============================================================================
 # Security
-# ---------------------
+# =============================================================================
+SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
-SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
-
-# ⚠️ Enable only after HTTPS / Route53 + SSL certs are set up
-SECURE_SSL_REDIRECT = True
+# =============================================================================
+# Logging
+# =============================================================================
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
