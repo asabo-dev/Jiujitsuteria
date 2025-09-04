@@ -3,10 +3,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
 
-# Load env (will get overridden by dev/prod if needed)
-load_dotenv()
+# =============================================================================
+# Paths & Environment
+# =============================================================================
+# BASE_DIR now points to the project root: /Users/quanefiom/Desktop/Github_Projects/Jiujitsuteria
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Load environment variables (overridden in dev/prod if needed)
+load_dotenv(BASE_DIR / ".env")
 
 # =============================================================================
 # Core Settings
@@ -51,7 +55,7 @@ ROOT_URLCONF = "jiujitsuteria.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # project-wide templates (optional)
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -67,7 +71,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "jiujitsuteria.wsgi.application"
 
 # =============================================================================
-# Database (will be overridden in dev/prod)
+# Database (overridden in dev/prod)
 # =============================================================================
 DATABASES = {
     "default": dj_database_url.config(
@@ -82,7 +86,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Static & Media Files
 # =============================================================================
 # URL to use when referring to static files
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 
 # Where Django will look for additional static files (before collectstatic)
 STATICFILES_DIRS = [
@@ -92,12 +96,13 @@ STATICFILES_DIRS = [
 # Where collectstatic will put all files (for production serving)
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media (user uploads) - local dev only
+# Media (user uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
-
+# =============================================================================
+# Auth Redirects
+# =============================================================================
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "bjj:index"
 LOGIN_URL = "/accounts/login/"
