@@ -1,23 +1,63 @@
 {% extends "bjj/base.html" %}
 
+{% block title %}{{ video.title }} | Jiujitsuteria{% endblock %}
+{% block og_title %}{{ video.title }} | Jiujitsuteria{% endblock %}
+{% block og_description %}Watch this BJJ tutorial: {{ video.title }}{% endblock %}
+{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-lg-8 mx-auto">
-        <h2 class="mb-4 text-center">{{ video.title }}</h2>
+        <h2 class="mb-4 text-center text-yellow">{{ video.title }}</h2>
 
+        <!-- 🎥 Video -->
         <div class="ratio ratio-16x9 mb-4">
-            <video controls>
-                <source src="{{ video.video_url }}?v={{ video.updated_at|date:'U' }}" type="video/mp4">
+            <video controls playsinline class="w-100 rounded"
+                   {% if video.signed_thumbnail_url %}
+                        poster="{{ video.signed_thumbnail_url }}"
+                   {% elif video.thumbnail_url %}
+                        poster="{{ video.thumbnail_url }}"
+                   {% endif %}>
+                <source src="{{ video.signed_video_url|default:video.video_url }}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         </div>
 
+        <!-- 🔗 Share Buttons (below video) -->
+        <div class="mb-3 text-center d-flex flex-wrap justify-content-center gap-2">
+            <a class="btn btn-outline-primary btn-sm"
+               href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ video.title }}"
+               target="_blank">
+                <i class="bi bi-twitter-x"></i> Twitter
+            </a>
+
+            <a class="btn btn-outline-primary btn-sm"
+               href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+               target="_blank">
+                <i class="bi bi-facebook"></i> Facebook
+            </a>
+
+            <a class="btn btn-outline-success btn-sm"
+               href="https://wa.me/?text={{ video.title }}%20{{ request.build_absolute_uri }}"
+               target="_blank">
+                <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+
+            <a class="btn btn-outline-info btn-sm"
+               href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}"
+               target="_blank">
+                <i class="bi bi-linkedin"></i> LinkedIn
+            </a>
+        </div>
+
+        <!-- Tags -->
         {% if video.tags.exists %}
         <div class="mb-4">
-            <h5>Tags:</h5>
+            <h5 class="text-yellow">Tags:</h5>
             <div class="d-flex flex-wrap gap-2">
                 {% for tag in video.tags.all %}
-                <a href="{% url 'bjj:videos_by_tag' tag_id=tag.id %}" class="btn btn-outline-secondary btn-sm">
+                <a href="{% url 'bjj:videos_by_tag' tag_id=tag.id %}" 
+                   class="badge tag-badge px-3 py-2 rounded-pill">
                     {{ tag.name }}
                 </a>
                 {% endfor %}
@@ -27,9 +67,51 @@
         <p class="text-muted fst-italic">No tags assigned to this video.</p>
         {% endif %}
 
-        <div class="mt-4">
-            <a href="{% url 'bjj:index' %}" class="btn btn-link">&larr; Back to Home</a>
+        <!-- Back Link -->
+        <div class="text-center mt-4">
+            <a href="{% url 'bjj:index' %}" class="btn btn-yellow">← Back to Home</a>
         </div>
     </div>
 </div>
+
+<!-- 🔗 Sticky Share Buttons (MOBILE ONLY) -->
+<div class="sticky-share-bar bg-dark text-center py-2 px-2 d-lg-none">
+    <a class="btn btn-outline-primary btn-sm me-1"
+       href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ video.title }}"
+       target="_blank"><i class="bi bi-twitter-x"></i></a>
+    <a class="btn btn-outline-primary btn-sm me-1"
+       href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-facebook"></i></a>
+    <a class="btn btn-outline-success btn-sm me-1"
+       href="https://wa.me/?text={{ video.title }}%20{{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-whatsapp"></i></a>
+    <a class="btn btn-outline-info btn-sm"
+       href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-linkedin"></i></a>
+</div>
+
+<style>
+.video-card video, .video-card img { object-fit: cover; }
+.sticky-share-bar { 
+    position: fixed; 
+    bottom: 0; 
+    left: 0; 
+    right: 0; 
+    z-index: 1050; 
+    border-top: 1px solid #FFD700; 
+}
+/* Custom tag badge */
+.tag-badge {
+    background-color: #000;
+    color: #FFD700;
+    border: 1px solid #fff;
+    text-decoration: none; /* remove underline */
+}
+.tag-badge:hover {
+    background-color: #FFD700;
+    color: #fff;
+    border: 1px solid #000;
+    text-decoration: none; /* prevent underline */
+}
+</style>
 {% endblock %}

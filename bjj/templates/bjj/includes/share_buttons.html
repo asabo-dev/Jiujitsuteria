@@ -1,0 +1,40 @@
+<div class="share-buttons d-flex flex-wrap justify-content-center gap-2 mt-4">
+  <p class="w-100 text-center mb-2 fw-bold text-yellow">Share this page:</p>
+
+  <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" 
+     target="_blank" class="btn btn-sm rounded-pill px-3" style="background-color:#1877f2; color:white;">
+     <i class="bi bi-facebook"></i> Facebook
+  </a>
+
+  <a href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ share_text|default:page_title }}" 
+     target="_blank" class="btn btn-sm rounded-pill px-3" style="background-color:#1da1f2; color:white;">
+     <i class="bi bi-twitter"></i> Twitter/X
+  </a>
+
+  <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}" 
+     target="_blank" class="btn btn-sm rounded-pill px-3" style="background-color:#0a66c2; color:white;">
+     <i class="bi bi-linkedin"></i> LinkedIn
+  </a>
+
+  <a href="https://api.whatsapp.com/send?text={{ request.build_absolute_uri }}" 
+     target="_blank" class="btn btn-sm rounded-pill px-3" style="background-color:#25d366; color:white;">
+     <i class="bi bi-whatsapp"></i> WhatsApp
+  </a>
+
+  <a href="https://t.me/share/url?url={{ request.build_absolute_uri }}&text={{ share_text|default:page_title }}" 
+     target="_blank" class="btn btn-sm rounded-pill px-3" style="background-color:#0088cc; color:white;">
+     <i class="bi bi-telegram"></i> Telegram
+  </a>
+
+  <!-- Copy link (for Instagram / TikTok) -->
+  <button class="btn btn-sm rounded-pill px-3" style="background-color:#333; color:white;" onclick="copyLink()">
+    <i class="bi bi-link-45deg"></i> Copy Link
+  </button>
+</div>
+
+<script>
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href);
+  alert("✅ Link copied! You can now paste it into Instagram, TikTok, or anywhere else.");
+}
+</script>
