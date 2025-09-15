@@ -1,4 +1,5 @@
-# jiujitsuteria/settings/dev.py
+"""Development settings for Jiujitsuteria project."""
+
 from .base import *
 from .utils import load_env_file
 import os
@@ -7,8 +8,6 @@ import dj_database_url
 # ---------------------
 # Load environment variables
 # ---------------------
-# BASE_DIR = Jiujitsuteria/jiujitsuteria
-# BASE_DIR.parent = Jiujitsuteria/
 load_env_file(".env.dev", str(BASE_DIR))
 
 # ---------------------
@@ -16,6 +15,30 @@ load_env_file(".env.dev", str(BASE_DIR))
 # ---------------------
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+
+# ---------------------
+# AWS S3 / CloudFront
+# ---------------------
+
+# Credentials
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+# Private bucket (videos)
+AWS_PRIVATE_VIDEO_BUCKET = os.getenv("AWS_PRIVATE_VIDEO_BUCKET")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+
+# Public bucket (thumbnails)
+AWS_PUBLIC_THUMBNAIL_BUCKET = os.getenv("AWS_PUBLIC_THUMBNAIL_BUCKET")
+
+# CloudFront private (signed video URLs)
+CLOUDFRONT_DOMAIN = os.getenv("CLOUDFRONT_DOMAIN", "").replace("https://", "")
+CLOUDFRONT_KEY_ID = os.getenv("CLOUDFRONT_KEY_ID")
+CLOUDFRONT_KEY_FILE = os.getenv("CLOUDFRONT_KEY_FILE")
+CLOUDFRONT_PRIVATE_KEY_PATH = CLOUDFRONT_KEY_FILE  # used in utils/cloudfront.py
+
+# CloudFront public (thumbnails)
+CLOUDFRONT_PUBLIC_DOMAIN = os.getenv("CLOUDFRONT_PUBLIC_DOMAIN")
 
 # ---------------------
 # Database (SQLite for dev)

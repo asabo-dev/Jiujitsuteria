@@ -42,3 +42,7 @@ scripts/
 !requirements.txt
 !requirements.lock
 
+# Ignore video upload script
+video_upload.py
+
+

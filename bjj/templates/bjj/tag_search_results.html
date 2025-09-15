@@ -1,43 +1,69 @@
 {% extends 'bjj/base.html' %}
 
+{% block title %}Search Results for "{{ query }}" | Jiujitsuteria{% endblock %}
+{% block og_title %}Search Results for "{{ query }}" | Jiujitsuteria{% endblock %}
+{% block og_description %}Search results for BJJ tutorials tagged with "{{ query }}"{% endblock %}
+{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}
+
 {% block content %}
 <div class="text-center mb-4">
-  <h2 class="text-yellow">Search Results for: "{{ query }}"</h2>
+  <h2 class="text-yellow">{{ query|title }} Videos</h2>
 </div>
 
 {% if videos %}
-  <div class="row justify-content-center">
+  <div class="row g-3 justify-content-center">
     {% for video in videos %}
-      <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card bg-dark text-white h-100 border border-yellow shadow">
-          <div class="card-body">
-            <h5 class="card-title text-yellow">{{ video.title }}</h5>
-
-            <video class="w-100 mb-3 rounded" controls title="{{ video.title }}">
-              <source src="{{ video.video_url }}?v={{ video.updated_at|date:'U' }}" type="video/mp4">
-              Your browser does not support the video tag.
-            </video>
-
-            <p class="card-text">
-              <strong>Tags:</strong><br>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="card bg-dark text-white h-100 border border-yellow shadow-sm video-card">
+          <a href="{% url 'bjj:video_detail' video.id %}" class="text-decoration-none text-white">
+            <div class="ratio ratio-16x9">
+              <img src="{% if video.signed_thumbnail_url %}{{ video.signed_thumbnail_url }}
+                       {% elif video.thumbnail_url %}{{ video.thumbnail_url }}
+                       {% else %}https://via.placeholder.com/300x169?text=No+Thumbnail{% endif %}"
+                   alt="" class="w-100 rounded object-fit-cover">
+            </div>
+            <div class="card-body p-2">
+              <h6 class="card-title text-yellow text-truncate mb-2">{{ video.title }}</h6>
               {% if video.tags.exists %}
-                <div class="d-flex flex-wrap gap-2 mt-2">
+                <div class="d-flex flex-wrap gap-1 small">
                   {% for tag in video.tags.all %}
-                    <a href="{% url 'bjj:videos_by_tag' tag.id %}" class="btn btn-outline-warning btn-sm">
-                      {{ tag.name }}
-                    </a>
+                    <a href="{% url 'bjj:videos_by_tag' tag_id=tag.id %}"
+                       class="badge tag-badge px-2 py-1 rounded-pill">{{ tag.name }}</a>
                   {% endfor %}
                 </div>
-              {% else %}
-                <span class="text-muted">No tags</span>
               {% endif %}
-            </p>
-          </div>
+            </div>
+          </a>
         </div>
       </div>
     {% endfor %}
   </div>
 
+  <!-- 📊 Video Count (bottom only) -->
+  <p class="text-center video-count mt-3">
+    Showing {{ videos.start_index }}–{{ videos.end_index }} of {{ videos.paginator.count }} videos
+  </p>
+
+    <!-- 🔗 Share Buttons -->
+  <div class="mb-3 text-center d-flex flex-wrap justify-content-center gap-2">
+    <a class="btn btn-outline-primary btn-sm"
+       href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ category.name }} Videos"
+       target="_blank"><i class="bi bi-twitter-x"></i> Twitter</a>
+
+    <a class="btn btn-outline-primary btn-sm"
+       href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-facebook"></i> Facebook</a>
+
+    <a class="btn btn-outline-success btn-sm"
+       href="https://wa.me/?text={{ category.name }}%20Videos%20{{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+
+    <a class="btn btn-outline-info btn-sm"
+       href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}"
+       target="_blank"><i class="bi bi-linkedin"></i> LinkedIn</a>
+  </div>
+
+  <!-- Pagination -->
   <div class="text-center mt-4">
     <nav>
       <ul class="pagination justify-content-center">
@@ -76,28 +102,47 @@
 </div>
 
 <style>
-  .pagination .page-item .custom-page-link {
-    background-color: #000;
-    color: #FFD700;
-    border: 1px solid #FFD700;
-    padding: 0.5rem 0.75rem;
-    margin: 0 3px;
-    border-radius: 5px;
-    transition: background-color 0.3s ease;
-  }
+.video-card img {
+  object-fit: contain;   /* ✅ Fit the whole image */
+  background-color: #000; /* ✅ Fill empty space with black */
+}
 
-  .pagination .page-item .custom-page-link:hover {
-    background-color: #FFD700;
-    color: #000;
-    text-decoration: none;
-  }
 
-  .pagination .page-item.active .custom-page-link-active {
-    background-color: #FFD700;
-    color: #000;
-    border: 1px solid #FFD700;
-    padding: 0.5rem 0.75rem;
-    border-radius: 5px;
-  }
+/* Video count styling */
+.video-count {
+  color: #FFD700;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Custom tag badge */
+.tag-badge {
+  background-color: #000;
+  color: #FFD700;
+  border: 1px solid #fff;
+  text-decoration: none;
+}
+.tag-badge:hover {
+  background-color: #FFD700;
+  color: #000;
+  border: 1px solid #000;
+  text-decoration: none;
+}
+
+/* Paginator theme */
+.page-link.custom-page-link {
+  color: #FFD700;
+  background-color: #000;
+  border: 1px solid #FFD700;
+}
+.page-link.custom-page-link:hover {
+  background-color: #FFD700;
+  color: #000;
+}
+.page-link.custom-page-link-active {
+  background-color: #FFD700;
+  color: #000;
+  border: 1px solid #FFD700;
+}
 </style>
 {% endblock %}

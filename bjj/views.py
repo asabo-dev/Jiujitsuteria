@@ -1,3 +1,6 @@
+"""Views for Brazilian Jiu-Jitsu (BJJ) video management and display.
+Includes video upload, listing, categorization, and searching by tags."""
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
@@ -70,6 +73,7 @@ def category_videos(request, category_type, category_id):
         'category': category,
         'videos': page_obj,
         'category_type': category_type,
+        'video_count': videos.count(),  # ✅ total count
     })
 
 
@@ -84,6 +88,7 @@ def videos_by_tag(request, tag_id):
         'query': tag.name,
         'tag': tag,
         'videos': page_obj,
+        'video_count': videos.count(),  # ✅ total count
     })
 
 
@@ -100,10 +105,13 @@ def tag_search(request):
     for term in tag_terms:
         videos = videos.filter(tags__name__icontains=term)
 
-    paginator = Paginator(videos.distinct(), 12)
+    videos = videos.distinct().order_by('-id')
+
+    paginator = Paginator(videos, 12)
     page_obj = paginator.get_page(request.GET.get('page'))
 
     return render(request, 'bjj/tag_search_results.html', {
         'query': query,
         'videos': page_obj,
+        'video_count': videos.count(),  # ✅ total count
     })
