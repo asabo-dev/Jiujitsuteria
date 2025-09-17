@@ -56,12 +56,14 @@ DATABASES = {
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media (user uploads - usually thumbnails only)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 # Whitenoise for static files in production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Media (thumbnails only, served via CloudFront)
+MEDIA_URL = f"https://{CLOUDFRONT_PUBLIC_DOMAIN}/"
+MEDIA_ROOT = BASE_DIR / "media"  # optional, used only if you store files locally
+
+# Note: Do NOT set DEFAULT_FILE_STORAGE for private videos; generate signed URLs in views
 
 # =============================================================================
 # Security
@@ -87,3 +89,13 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# =============================================================================
+# Notes for developers
+# =============================================================================
+# - Thumbnails: public S3 + CloudFront, use MEDIA_URL in templates
+# - Videos: private S3 + signed CloudFront URLs, generate signed URLs in views
+# - Example usage for videos:
+#   from bjj.utils import generate_signed_url
+#   video_url = generate_signed_url(s3_key, CLOUDFRONT_DOMAIN, CLOUDFRONT_KEY_ID, CLOUDFRONT_PRIVATE_KEY_PATH)
+
