@@ -34,6 +34,8 @@ AWS_PUBLIC_THUMBNAIL_BUCKET = os.getenv("AWS_PUBLIC_THUMBNAIL_BUCKET")
 CLOUDFRONT_DOMAIN = os.getenv("CLOUDFRONT_DOMAIN", "").replace("https://", "")
 CLOUDFRONT_KEY_ID = os.getenv("CLOUDFRONT_KEY_ID")
 CLOUDFRONT_PRIVATE_KEY_PATH = os.getenv("CLOUDFRONT_PRIVATE_KEY_PATH")
+# Compatibility: cloudfront.py expects CLOUDFRONT_KEY_FILE
+CLOUDFRONT_KEY_FILE = CLOUDFRONT_PRIVATE_KEY_PATH
 
 # CloudFront public (unsigned thumbnail URLs)
 CLOUDFRONT_PUBLIC_DOMAIN = os.getenv("CLOUDFRONT_PUBLIC_DOMAIN", "").replace("https://", "")
@@ -98,4 +100,16 @@ LOGGING = {
 # - Example usage for videos:
 #   from bjj.utils import generate_signed_url
 #   video_url = generate_signed_url(s3_key, CLOUDFRONT_DOMAIN, CLOUDFRONT_KEY_ID, CLOUDFRONT_PRIVATE_KEY_PATH)
+
+# =============================================================================
+# Monkey-patch CloudFront signed URL generator (Production only)
+# This ensures that the production settings use the correct signed URL generator
+# dev.py does not use signed URLs, so no need to patch there
+# =============================================================================
+
+import sys
+from utils import signed_urls
+
+if hasattr(signed_urls, "generate_signed_url"):
+    sys.modules["jiujitsuteria.utils.cloudfront"] = signed_urls
 
