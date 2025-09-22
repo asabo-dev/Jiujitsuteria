@@ -1,7 +1,6 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyc
 
 # Virtual environments
 venv/
@@ -12,21 +11,17 @@ bjj-env/
 .env
 .env.*
 *.pem
+secrets/
 
 # Databases
 *.sqlite3
 db.sqlite3
-# ignore DB dumps
+# Ignore DB dumps
 *.json
 DB_data/
 
-
 # Django Static & Media
-
-# Collected static files
 staticfiles/
-
-# Uploaded media 
 media/
 
 # Logs & Caches
@@ -46,10 +41,9 @@ scripts/
 !requirements.txt
 !requirements.lock
 
-# Ignore video upload script
-video_upload.py
-
-
-*.json
-deploy.sh
+# Deployment / helper scripts
 *.sh
+
+# Gunicorn / sockets / pid
+*.sock
+*.pid
