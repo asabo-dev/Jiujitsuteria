@@ -7,6 +7,9 @@ with clean CloudFront URLs.
 ✅ Dry-run mode available
 ✅ Only processes files starting with '-'
 ✅ Skips existing thumbnails
+
+export DJANGO_SETTINGS_MODULE=jiujitsuteria.settings.prod (for ec2 server upload)
+Then run: python upload_script.py
 """
 
 import os
@@ -25,7 +28,9 @@ DRY_RUN = False  # Set to True to test without uploading
 
 # --- Setup Django Environment ---
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jiujitsuteria.settings.dev")
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jiujitsuteria.settings.dev"), --- IGNORE for SQLite DB---
+settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "jiujitsuteria.settings.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", settings_module)
 django.setup()
 
 from bjj.models import Video

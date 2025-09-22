@@ -28,6 +28,7 @@ staticfiles/
 
 # Uploaded media 
 media/
+video_upload.py
 
 # Logs & Caches
 *.log
