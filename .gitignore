@@ -16,6 +16,10 @@ bjj-env/
 # Databases
 *.sqlite3
 db.sqlite3
+# ignore DB dumps
+*.json
+DB_data/
+
 
 # Django Static & Media
 
