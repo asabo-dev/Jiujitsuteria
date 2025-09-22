@@ -23,6 +23,7 @@ DB_data/
 # Django Static & Media
 staticfiles/
 media/
+video_upload.py
 
 # Logs & Caches
 *.log
