@@ -52,3 +52,4 @@ video_upload.py
 
 *.json
 deploy.sh
+*.sh
