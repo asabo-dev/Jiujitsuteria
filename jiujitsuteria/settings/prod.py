@@ -34,6 +34,8 @@ AWS_PUBLIC_THUMBNAIL_BUCKET = os.getenv("AWS_PUBLIC_THUMBNAIL_BUCKET")
 CLOUDFRONT_DOMAIN = os.getenv("CLOUDFRONT_DOMAIN", "").replace("https://", "")
 CLOUDFRONT_KEY_ID = os.getenv("CLOUDFRONT_KEY_ID")
 CLOUDFRONT_PRIVATE_KEY_PATH = os.getenv("CLOUDFRONT_PRIVATE_KEY_PATH")
+# Alias for backward compatibility with cloudfront.py
+CLOUDFRONT_KEY_FILE = CLOUDFRONT_PRIVATE_KEY_PATH
 
 # CloudFront public (unsigned thumbnail URLs)
 CLOUDFRONT_PUBLIC_DOMAIN = os.getenv("CLOUDFRONT_PUBLIC_DOMAIN", "").replace("https://", "")
