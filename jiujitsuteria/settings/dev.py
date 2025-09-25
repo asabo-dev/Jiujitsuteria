@@ -4,11 +4,15 @@ from .base import *
 from .utils import load_env_file
 import os
 import dj_database_url
+from pathlib import Path
 
 # ---------------------
 # Load environment variables (from .env.dev if available)
 # ---------------------
-load_env_file(".env.dev", str(BASE_DIR))
+#load_env_file(".env.dev", str(BASE_DIR))
+env_path = Path(BASE_DIR) / ".env.dev"
+if env_path.exists():
+    load_env_file(".env.dev", str(BASE_DIR))
 
 # ---------------------
 # Core Django Settings
