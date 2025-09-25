@@ -1,8 +1,23 @@
+# Core
 Django==5.2.1
-dj-database-url==3.0.0
-psycopg2-binary==2.9.10
-boto3==1.38.37
-django-storages==1.14.6
 gunicorn==23.0.0
 whitenoise==6.9.0
+
+# Database
+dj-database-url==3.0.0
+psycopg2-binary==2.9.10
+
+# AWS / Storage
+boto3==1.38.37
+django-storages==1.14.6
+
+# Env handling
 python-dotenv==1.1.1
+
+# Security / Signing
+rsa==4.9
+
+# Optional (uncomment if needed)
+# pillow==10.4.0   # image processing for thumbnails
+# requests==2.32.3 # for external APIs
+
