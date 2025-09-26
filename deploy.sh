@@ -1,31 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR=/home/ubuntu/bjj_app/Jiujitsuteria
-VENV=$PROJECT_DIR/venv
+APP_NAME="bjj_app"
+DEPLOY_USER="deploy"
+APP_DIR="/home/$DEPLOY_USER/$APP_NAME"
+RELEASES_DIR="$APP_DIR/releases"
+SHARED_DIR="$APP_DIR/shared"
+CURRENT_DIR="$APP_DIR/current"
+TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+NEW_RELEASE_DIR="$RELEASES_DIR/$TIMESTAMP"
 
-cd $PROJECT_DIR
+echo ">>> Starting deployment to $NEW_RELEASE_DIR"
 
-echo ">>> Pulling latest code from GitHub..."
-git fetch origin
-git checkout main
-git pull origin main
+# 1. Ensure base directories exist
+mkdir -p $RELEASES_DIR
+mkdir -p $SHARED_DIR/{venv,media,static}
 
-echo ">>> Activating virtualenv and installing dependencies..."
-source $VENV/bin/activate
-pip install -r requirements.lock
+# 2. Clone repo into new release directory
+git clone -b main https://github.com/asabo-dev/Jiujitsuteria.git $NEW_RELEASE_DIR
 
-echo ">>> Running migrations..."
+# 3. Link shared resources
+ln -sfn $SHARED_DIR/.env $NEW_RELEASE_DIR/.env
+ln -sfn $SHARED_DIR/media $NEW_RELEASE_DIR/media
+ln -sfn $SHARED_DIR/static $NEW_RELEASE_DIR/static
+
+# 4. Set up virtual environment
+if [ ! -d "$SHARED_DIR/venv" ]; then
+  echo ">>> Creating virtualenv in $SHARED_DIR/venv"
+  python3 -m venv $SHARED_DIR/venv
+fi
+source $SHARED_DIR/venv/bin/activate
+pip install --upgrade pip
+pip install -r $NEW_RELEASE_DIR/requirements.lock
+
+# 5. Run Django migrations & collectstatic
+cd $NEW_RELEASE_DIR
 python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod
-
-echo ">>> Collecting static files..."
 python3 manage.py collectstatic --noinput --settings=jiujitsuteria.settings.prod
 
-echo ">>> Restarting services..."
-sudo systemctl restart gunicorn
-sudo systemctl restart nginx
+# 6. Update symlink to point to new release
+ln -sfn $NEW_RELEASE_DIR $CURRENT_DIR
 
-echo ">>> Deployment finished at $(date)"
+# 7. Reload Gunicorn + Nginx (graceful, zero downtime)
+echo ">>> Reloading services..."
+sudo systemctl reload gunicorn
+sudo systemctl reload nginx
 
+# 8. Clean up old releases (keep last 5)
+echo ">>> Cleaning up old releases..."
+ls -1dt $RELEASES_DIR/* | tail -n +6 | xargs rm -rf || true
 
-
+echo ">>> Deployment finished successfully at $(date)"
