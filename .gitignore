@@ -44,6 +44,7 @@ scripts/
 
 # Deployment / helper scripts
 *.sh
+!deploy.sh
 
 # Gunicorn / sockets / pid
 *.sock
