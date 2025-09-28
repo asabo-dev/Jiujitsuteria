@@ -36,7 +36,6 @@ video_upload.py
 
 # Project-specific
 test_cf_key.py
-scripts/
 
 # Requirements (only keep locked/tracked ones)
 !requirements.txt
