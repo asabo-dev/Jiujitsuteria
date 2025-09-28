@@ -25,6 +25,9 @@ staticfiles/
 media/
 video_upload.py
 
+# Ignore shared deployment directory
+shared/
+
 # Logs & Caches
 *.log
 *.pot
