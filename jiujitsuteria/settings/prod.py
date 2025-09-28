@@ -3,23 +3,27 @@
 from .base import *
 from .utils import load_env_file
 import os
+import sys
 import dj_database_url
 
 # =============================================================================
 # Environment
 # =============================================================================
-# Load environment variables from .env.prod
-load_env_file(".env.prod", str(BASE_DIR))
+# On EC2, load environment variables from the shared folder
+shared_env_path = BASE_DIR / "shared" / ".env.prod"
+if not shared_env_path.exists():
+    sys.exit(f"❌ Required environment file not found: {shared_env_path}")
+
+load_env_file(".env.prod", str(BASE_DIR / "shared"))
 
 DEBUG = False
 
 # Allowed hosts (set in .env.prod)
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "jiujitsuteria.com,www.jiujitsuteria.com").split(",")
 
 # =============================================================================
 # AWS S3 / CloudFront
 # =============================================================================
-# Credentials
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
@@ -54,15 +58,12 @@ DATABASES = {
 # =============================================================================
 # Static & Media (Production)
 # =============================================================================
-# Collected static files
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media (user uploads - usually thumbnails only)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Whitenoise for static files in production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # =============================================================================
@@ -71,7 +72,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
