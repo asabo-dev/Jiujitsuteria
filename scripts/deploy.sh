@@ -1,11 +1,14 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # --- Paths ---
-APP_DIR=/home/deploy/bjj_app/current         # always points to latest release
-VENV_DIR=/home/deploy/bjj_app/shared/venv    # shared venv across releases
-LOG_DIR=/home/deploy/bjj_app/shared/logs
+BASE_DIR=/home/deploy/bjj_app
+RELEASES_DIR=$BASE_DIR/releases
+CURRENT_LINK=$BASE_DIR/current
+VENV_DIR=$BASE_DIR/shared/venv
+LOG_DIR=$BASE_DIR/shared/logs
 LOG_FILE=$LOG_DIR/deploy.log
+SCRIPT_DIR=$BASE_DIR/Jiujitsuteria/scripts
 
 # --- Flags ---
 DRY_RUN=false
@@ -26,44 +29,55 @@ if $DRY_RUN; then
     echo "⚠️  Running in DRY-RUN mode (no services will be restarted)"
 fi
 
-# 1. Go to project root
-cd "$APP_DIR"
-
-# 2. Verify we are inside the expected repo
-echo "📂 Verifying repo location..."
-git rev-parse --show-toplevel || {
-    echo "❌ Not inside a git repo, aborting."
+# --- Functions ---
+rollback() {
+    echo "❌ Deployment failed! Rolling back..."
+    bash "$SCRIPT_DIR/rollback.sh" || echo "⚠️ Rollback script failed, manual intervention required!"
     exit 1
 }
 
-# 3. Pull latest code
-echo "📥 Pulling latest code..."
-git fetch origin main
-git reset --hard origin/main
+trap rollback ERR
 
-# 4. Create venv if missing
+# Ensure scripts are executable
+chmod +x "$SCRIPT_DIR"/*.sh || true
+
+# 1. Prepare new release folder
+TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+NEW_RELEASE=$RELEASES_DIR/$TIMESTAMP
+mkdir -p "$NEW_RELEASE"
+
+echo "📂 New release directory: $NEW_RELEASE"
+
+# 2. Copy latest repo into new release
+rsync -a --exclude "venv" --exclude "logs" $BASE_DIR/Jiujitsuteria/ $NEW_RELEASE/
+
+# 3. Create venv if missing
 if [ ! -d "$VENV_DIR" ]; then
     echo "📦 Creating virtualenv..."
     python3 -m venv "$VENV_DIR"
 fi
 
-# 5. Activate venv & install dependencies
+# 4. Activate venv & install dependencies
 echo "📦 Installing dependencies..."
 source "$VENV_DIR/bin/activate"
 python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r $NEW_RELEASE/requirements.txt
 
-# 6. Collect static files with prod settings
+# 5. Collect static files with prod settings
 echo "🎨 Collecting static files..."
-python3 manage.py collectstatic --noinput --settings=jiujitsuteria.settings.prod
+python3 $NEW_RELEASE/manage.py collectstatic --noinput --settings=jiujitsuteria.settings.prod
 
-# 7. Apply migrations with prod settings
+# 6. Apply migrations with prod settings
 echo "🗂️ Applying migrations..."
-python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod
+python3 $NEW_RELEASE/manage.py migrate --noinput --settings=jiujitsuteria.settings.prod
+
+# 7. Update symlink to point to new release
+ln -sfn "$NEW_RELEASE" "$CURRENT_LINK"
+echo "🔗 Updated current symlink to $NEW_RELEASE"
 
 # 8. Restart services (skip if dry-run)
 if $DRY_RUN; then
-    echo "⏭️  Skipping service restart (dry-run mode)"
+    echo "⏭️ Skipping service restart (dry-run mode)"
 else
     echo "🔄 Restarting services..."
     sudo systemctl restart gunicorn
