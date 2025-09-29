@@ -1,56 +1,74 @@
-name: CI/CD
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
-  pull_request:
+  workflow_dispatch:   # allow manual trigger
 
 jobs:
+  # 1. Run Django Tests
   test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Python 3.12
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt
 
-      # 4. Run Django tests
       - name: Run Django tests
         run: |
           python3 manage.py test --settings=jiujitsuteria.settings.dev
 
-  # Deployment (runs only if tests pass)
-  deploy:
+  # 2. Dry Run Deployment (auto after tests)
+  deploy-dry-run:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main'
 
     steps:
-      # 1. Checkout (not strictly needed for SSH, but useful for logs)
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. SSH into EC2 and run deploy.sh in DRY RUN mode
-      - name: Deploy to EC2 (Dry Run)
+      - name: Dry Run Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: deploy
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/deploy/bjj_app/scripts
+            cd /home/deploy/bjj_app/Jiujitsuteria/scripts
             ./deploy.sh --dry-run
+
+  # 3. Real Deployment (manual approval required)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: deploy-dry-run
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production   # requires manual approval in GitHub Environments
+      url: https://jiujitsuteria.com   # optional
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 (Production)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: deploy
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/deploy/bjj_app/Jiujitsuteria/scripts
+            ./deploy.sh
 
