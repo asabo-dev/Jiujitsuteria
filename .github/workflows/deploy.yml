@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -31,4 +31,26 @@ jobs:
       - name: Run Django tests
         run: |
           python3 manage.py test --settings=jiujitsuteria.settings.dev
+
+  # Deployment (runs only if tests pass)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      # 1. Checkout (not strictly needed for SSH, but useful for logs)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. SSH into EC2 and run deploy.sh in DRY RUN mode
+      - name: Deploy to EC2 (Dry Run)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: deploy
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/deploy/bjj_app/scripts
+            ./deploy.sh --dry-run
 
