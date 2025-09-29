@@ -89,6 +89,7 @@ test_cf_key.py
 *.sh
 # Explicitly keep deploy.sh in version control
 !scripts/deploy.sh
+!scripts/rollback.sh
 
 # =============================================================================
 # Gunicorn / sockets / pid
