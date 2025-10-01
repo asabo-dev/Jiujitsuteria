@@ -1,0 +1,91 @@
+name: Sync Dev DB to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (no changes to prod)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      rollback_file:
+        description: "Backup file in S3 to restore (e.g. backup_20250930_120000.json)"
+        required: false
+        default: ""
+
+jobs:
+  sync:
+    if: ${{ github.event.inputs.rollback_file == '' }}
+    name: Sync Dev → Prod
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Dump data from Dev (SQLite)
+        run: |
+          python manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
+            --natural-foreign --natural-primary --indent 2 > bjj_data.json
+
+      - name: Upload dump to S3
+        run: |
+          aws s3 cp bjj_data.json s3://jiujitsuteria-mediia/backups/bjj_data.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-southeast-1
+
+      - name: Run sync on EC2
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no deploy@your-prod-server << 'EOF'
+          cd /home/deploy/bjj_app/current
+          source ../shared/venv/bin/activate
+          python manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
+            --natural-foreign --natural-primary --indent 2 > backup_$(date +%Y%m%d_%H%M%S).json \
+            --settings=jiujitsuteria.settings.prod
+          aws s3 cp backup_*.json s3://jiujitsuteria-mediia/backups/
+          python manage.py loaddata bjj_data.json --settings=jiujitsuteria.settings.prod
+          EOF
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-southeast-1
+
+  rollback:
+    if: ${{ github.event.inputs.rollback_file != '' }}
+    name: Rollback Prod DB
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Download rollback file from S3
+        run: |
+          aws s3 cp s3://jiujitsuteria-mediia/backups/${{ github.event.inputs.rollback_file }} rollback.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-southeast-1
+
+      - name: Restore DB on EC2
+        run: |
+          scp rollback.json deploy@your-prod-server:/home/deploy/bjj_app/current/
+          ssh -o StrictHostKeyChecking=no deploy@your-prod-server << 'EOF'
+          cd /home/deploy/bjj_app/current
+          source ../shared/venv/bin/activate
+          python manage.py loaddata rollback.json --settings=jiujitsuteria.settings.prod
+          EOF
+

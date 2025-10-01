@@ -10,6 +10,7 @@ set -euo pipefail
 # -------------------------
 PROD_HOST="deploy@your-prod-server"
 PROD_PATH="/home/deploy/bjj_app/current"
+SHARED_PATH="/home/deploy/bjj_app/shared"
 TMP_FILE="bjj_data.json"
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).json"
 MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
@@ -25,24 +26,24 @@ sync_data() {
   python3 manage.py dumpdata $MODELS \
     --natural-foreign --natural-primary --indent 2 > $TMP_FILE
 
-  echo "[*] Copying JSON to PROD..."
-  scp $TMP_FILE $PROD_HOST:$PROD_PATH/
+  echo "[*] Copying JSON to PROD shared/..."
+  scp $TMP_FILE $PROD_HOST:$SHARED_PATH/
 
   echo "[*] Backing up PROD DB..."
-  ssh $PROD_HOST "cd $PROD_PATH && source ../shared/venv/bin/activate && \
+  ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py dumpdata $MODELS \
-      --natural-foreign --natural-primary --indent 2 > $BACKUP_FILE \
-      --settings=jiujitsuteria.settings.prod"
+      --natural-foreign --natural-primary --indent 2 \
+      --settings=jiujitsuteria.settings.prod > $SHARED_PATH/$BACKUP_FILE"
 
-  echo "[✓] Backup saved as $BACKUP_FILE on PROD"
+  echo "[✓] Backup saved as $BACKUP_FILE in shared/"
 
   echo "[*] Uploading backup to S3..."
-  ssh $PROD_HOST "aws s3 cp $PROD_PATH/$BACKUP_FILE $BACKUP_BUCKET/"
+  ssh $PROD_HOST "aws s3 cp $SHARED_PATH/$BACKUP_FILE $BACKUP_BUCKET/"
   echo "[✓] Backup uploaded to $BACKUP_BUCKET"
 
   echo "[*] Loading new data into PROD..."
-  ssh $PROD_HOST "cd $PROD_PATH && source ../shared/venv/bin/activate && \
-    python3 manage.py loaddata $TMP_FILE \
+  ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
+    python3 manage.py loaddata $SHARED_PATH/$TMP_FILE \
       --settings=jiujitsuteria.settings.prod"
 
   echo "[✓] Sync complete."
@@ -56,8 +57,8 @@ rollback() {
   fi
   BACKUP_TO_RESTORE=$1
   echo "[*] Restoring PROD DB from $BACKUP_TO_RESTORE..."
-  ssh $PROD_HOST "cd $PROD_PATH && source ../shared/venv/bin/activate && \
-    python3 manage.py loaddata $BACKUP_TO_RESTORE \
+  ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
+    python3 manage.py loaddata $SHARED_PATH/$BACKUP_TO_RESTORE \
       --settings=jiujitsuteria.settings.prod"
   echo "[✓] Rollback complete."
 }
