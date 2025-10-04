@@ -12,7 +12,7 @@ on:
           - "true"
           - "false"
       rollback_file:
-        description: "Backup file in S3 to restore (e.g. backup_20250930_120000.json)"
+        description: "Backup file in S3 to restore (e.g. backup_20251004_193000.json)"
         required: false
         default: ""
 
@@ -24,7 +24,7 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -35,35 +35,80 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Dump data from Dev (SQLite)
-        run: |
-          python manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
-            --natural-foreign --natural-primary --indent 2 > bjj_data.json
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
 
-      - name: Upload dump to S3
+      - name: Dump data from Dev DB
         run: |
-          aws s3 cp bjj_data.json s3://jiujitsuteria-mediia/backups/bjj_data.json
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          DUMP_FILE="bjj_data_${TIMESTAMP}.json"
+          python3 manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
+            --natural-foreign --natural-primary --indent 2 \
+            --settings=jiujitsuteria.settings.dev > $DUMP_FILE
+          echo "✅ Created dump: $DUMP_FILE"
+          echo "DUMP_FILE=$DUMP_FILE" >> $GITHUB_ENV
 
-      - name: Run sync on EC2
+      - name: Upload JSON dump to S3
+        run: |
+          aws s3 cp $DUMP_FILE s3://jiujitsuteria-mediia/backups/$DUMP_FILE
+          echo "✅ Uploaded $DUMP_FILE to S3 backups"
+
+      - name: Retain only the last 3 Dev backups
+        run: |
+          echo "🧹 Cleaning up old dev backups (keeping 3 latest)..."
+          FILES=$(aws s3 ls s3://jiujitsuteria-mediia/backups/ | grep bjj_data_ | sort | awk '{print $4}')
+          COUNT=$(echo "$FILES" | wc -l)
+          if [ "$COUNT" -gt 3 ]; then
+            DELETE=$(echo "$FILES" | head -n $(($COUNT - 3)))
+            for f in $DELETE; do
+              echo "Deleting old dump: $f"
+              aws s3 rm s3://jiujitsuteria-mediia/backups/$f
+            done
+          else
+            echo "✅ Nothing to clean, less than or equal to 3 dev dumps."
+          fi
+
+      - name: Sync to Production (load dump into Prod DB)
         if: ${{ github.event.inputs.dry_run == 'false' }}
         run: |
+          echo "🚀 Syncing to production database..."
           ssh -o StrictHostKeyChecking=no deploy@your-prod-server << 'EOF'
           cd /home/deploy/bjj_app/current
           source ../shared/venv/bin/activate
-          python manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
-            --natural-foreign --natural-primary --indent 2 > backup_$(date +%Y%m%d_%H%M%S).json \
-            --settings=jiujitsuteria.settings.prod
+
+          # Backup current prod data
+          python3 manage.py dumpdata bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard \
+            --natural-foreign --natural-primary --indent 2 \
+            --settings=jiujitsuteria.settings.prod > backup_$(date +%Y%m%d_%H%M%S).json
           aws s3 cp backup_*.json s3://jiujitsuteria-mediia/backups/
-          python manage.py loaddata bjj_data.json --settings=jiujitsuteria.settings.prod
+          echo "✅ Backed up current production data"
+
+          # Retain only the last 3 Prod backups
+          FILES=$(aws s3 ls s3://jiujitsuteria-mediia/backups/ | grep backup_ | sort | awk '{print $4}')
+          COUNT=$(echo "$FILES" | wc -l)
+          if [ "$COUNT" -gt 3 ]; then
+            DELETE=$(echo "$FILES" | head -n $(($COUNT - 3)))
+            for f in $DELETE; do
+              echo "Deleting old backup: $f"
+              aws s3 rm s3://jiujitsuteria-mediia/backups/$f
+            done
+          else
+            echo "✅ Less than or equal to 3 prod backups, nothing to clean."
+          fi
+
+          # Get latest dev dump from S3
+          LATEST_DUMP=$(aws s3 ls s3://jiujitsuteria-mediia/backups/ | grep bjj_data_ | sort | tail -n 1 | awk '{print $4}')
+          echo "📦 Loading latest dump: \$LATEST_DUMP"
+          aws s3 cp s3://jiujitsuteria-mediia/backups/\$LATEST_DUMP ./bjj_data.json
+
+          # Load into production DB
+          python3 manage.py loaddata bjj_data.json --settings=jiujitsuteria.settings.prod
+          echo "✅ Synced Dev data to Prod"
           EOF
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
 
   rollback:
     if: ${{ github.event.inputs.rollback_file != '' }}
@@ -72,13 +117,17 @@ jobs:
     environment: production
 
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
       - name: Download rollback file from S3
         run: |
           aws s3 cp s3://jiujitsuteria-mediia/backups/${{ github.event.inputs.rollback_file }} rollback.json
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
+          echo "✅ Downloaded rollback file from S3"
 
       - name: Restore DB on EC2
         run: |
@@ -86,6 +135,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no deploy@your-prod-server << 'EOF'
           cd /home/deploy/bjj_app/current
           source ../shared/venv/bin/activate
-          python manage.py loaddata rollback.json --settings=jiujitsuteria.settings.prod
+          python3 manage.py loaddata rollback.json --settings=jiujitsuteria.settings.prod
+          echo "✅ Rollback completed successfully"
           EOF
 
