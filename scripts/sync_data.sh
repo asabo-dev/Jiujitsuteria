@@ -1,7 +1,8 @@
 #!/bin/bash
 # scripts/sync_data.sh
 # Syncs BJJ models from Dev (SQLite) → Prod (RDS)
-# Includes auto-backup, rollback support, S3 backup storage, and backup rotation (keep last 3)
+# Includes auto-backup, rollback support, S3 backup storage,
+# backup rotation (keep last 3), and --dry-run support.
 
 set -euo pipefail
 
@@ -24,13 +25,28 @@ DEV_DUMP_PATH="s3://jiujitsuteria-mediia/dev-dumps"
 # -------------------------
 
 sync_data() {
+  local DRY_RUN=${1:-false}
+
+  echo "-----------------------------------------------"
+  echo "[*] Starting sync process (Dry-run: $DRY_RUN)"
+  echo "-----------------------------------------------"
+
+  echo "[*] Running migrations on DEV to ensure all tables exist..."
+  python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.dev
+
   echo "[*] Dumping data from DEV (SQLite)..."
   python3 manage.py dumpdata $MODELS \
-    --natural-foreign --natural-primary --indent 2 > $TMP_FILE
+    --natural-foreign --natural-primary --indent 2 \
+    --settings=jiujitsuteria.settings.dev > $TMP_FILE
+  echo "[✓] Dump complete: $TMP_FILE"
 
   echo "[*] Uploading DEV dump to S3 ($DEV_DUMP_PATH)..."
   aws s3 cp $TMP_FILE $DEV_DUMP_PATH/$TMP_FILE
   echo "[✓] Uploaded $TMP_FILE to $DEV_DUMP_PATH"
+
+  echo "[*] Running migrations on PROD before backup..."
+  ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
+    python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod"
 
   echo "[*] Backing up PROD DB..."
   ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
@@ -43,7 +59,7 @@ sync_data() {
   echo "[✓] Backup uploaded to $BACKUP_BUCKET/$BACKUP_FILE"
 
   echo "[*] Cleaning up old S3 backups (keep only last 3)..."
-  ssh $PROD_HOST "aws s3 ls $BACKUP_BUCKET/ | sort | head -n -3 | awk '{print \$4}' | while read old_file; do
+  ssh $PROD_HOST "aws s3 ls $BACKUP_BUCKET/ | grep backup_ | sort | awk '{print \$4}' | head -n -3 | while read old_file; do
       if [ -n \"\$old_file\" ]; then
         echo Deleting old backup: \$old_file
         aws s3 rm $BACKUP_BUCKET/\$old_file
@@ -51,11 +67,19 @@ sync_data() {
     done"
   echo "[✓] Old backups pruned, keeping only the last 3."
 
+  if [ "$DRY_RUN" == "true" ]; then
+    echo "🚧 Dry-run complete. Skipping data load into production."
+    echo "[✓] All other steps (dump, backup, upload, prune) completed successfully."
+    return 0
+  fi
+
+  echo "[*] Fetching latest DEV dump from S3..."
+  ssh $PROD_HOST "aws s3 cp $DEV_DUMP_PATH/$TMP_FILE $SHARED_PATH/$TMP_FILE"
+
   echo "[*] Loading new data into PROD..."
   ssh $PROD_HOST "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py loaddata $SHARED_PATH/$TMP_FILE \
       --settings=jiujitsuteria.settings.prod"
-
   echo "[✓] Sync complete. PROD is now updated."
 }
 
@@ -78,6 +102,8 @@ rollback() {
 # -------------------------
 if [ "${1:-}" == "--rollback" ]; then
   rollback "$2"
+elif [ "${1:-}" == "--dry-run" ]; then
+  sync_data true
 else
-  sync_data
+  sync_data false
 fi
