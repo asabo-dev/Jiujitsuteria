@@ -1,88 +1,77 @@
-name: Sync Dev Data to S3
+name: Sync Data (Dev → Prod)
 
 on:
-  workflow_dispatch:  # Manually run from GitHub Actions tab
-  schedule:
-    - cron: "0 0 * * *"  # Optional: runs daily at midnight UTC (remove if not needed)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Choose sync mode"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full
+          - dry-run
+          - rollback
+      rollback_file:
+        description: "Filename to restore (required if mode=rollback)"
+        required: false
+        type: string
 
 jobs:
-  sync-data:
+  sync:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: ap-southeast-1
+      PROD_HOST: deploy@ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com
+      DEV_DB_S3_PATH: s3://jiujitsuteria-mediia/dev-db/db.sqlite3
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -r requirements.txt
+          sudo apt-get install -y awscli
 
-      - name: Run migrations (prod settings)
-        env:
-          DJANGO_SETTINGS_MODULE: jiujitsuteria.settings.prod
-        run: |
-          source venv/bin/activate
-          python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Dump database data (safe for dry-run)
-        env:
-          DJANGO_SETTINGS_MODULE: jiujitsuteria.settings.prod
+      - name: Download dev SQLite DB from S3
         run: |
-          source venv/bin/activate
-          mkdir -p dev-dumps
-          timestamp=$(date +"%Y%m%d%H%M%S")
-          dump_file="dev-dumps/data_${timestamp}.json"
-          echo "Dumping data to $dump_file ..."
-          python3 manage.py dumpdata \
-            --natural-primary \
-            --natural-foreign \
-            --indent 2 \
-            --settings=jiujitsuteria.settings.prod \
-            Video Tag Position Technique Guard > $dump_file
-          echo "✅ Data dump complete: $dump_file"
+          echo "Downloading dev SQLite DB from S3..."
+          aws s3 cp $DEV_DB_S3_PATH ./db.sqlite3
+          ls -lh db.sqlite3
+          echo "✅ Dev DB successfully downloaded."
 
-      - name: Upload dump to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
-        run: |
-          echo "Uploading latest dump to S3..."
-          aws s3 cp dev-dumps/data_*.json s3://jiujitsuteria-mediia/dev-dumps/ --storage-class STANDARD
-          echo "✅ Upload complete."
+      - name: Make sync script executable
+        run: chmod +x scripts/sync_data.sh
 
-      - name: Keep only last 3 backups on S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
-        run: |
-          echo "Cleaning up old backups..."
-          files=$(aws s3 ls s3://jiujitsuteria-mediia/dev-dumps/ | sort -r | awk '{print $4}')
-          count=0
-          for file in $files; do
-            count=$((count+1))
-            if [ $count -gt 3 ]; then
-              echo "Deleting old backup: $file"
-              aws s3 rm s3://jiujitsuteria-mediia/dev-dumps/$file
-            fi
-          done
-          echo "✅ Only last 3 backups retained."
+      - name: Run full sync
+        if: ${{ github.event.inputs.mode == 'full' }}
+        run: ./scripts/sync_data.sh
 
-      - name: Verify S3 contents
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ap-southeast-1
+      - name: Run dry-run sync
+        if: ${{ github.event.inputs.mode == 'dry-run' }}
+        run: ./scripts/sync_data.sh --dry-run
+
+      - name: Run rollback
+        if: ${{ github.event.inputs.mode == 'rollback' }}
         run: |
-          echo "✅ Current backups stored in S3:"
-          aws s3 ls s3://jiujitsuteria-mediia/dev-dumps/
+          if [ -z "${{ github.event.inputs.rollback_file }}" ]; then
+            echo "❌ rollback_file input is required for rollback mode!"
+            exit 1
+          fi
+          ./scripts/sync_data.sh --rollback "${{ github.event.inputs.rollback_file }}"
 
