@@ -1,7 +1,7 @@
 name: Sync Dev Data to S3
 
 on:
-  workflow_dispatch:  # Run manually from GitHub Actions tab
+  workflow_dispatch:  # Manually run from GitHub Actions tab
   schedule:
     - cron: "0 0 * * *"  # Optional: runs daily at midnight UTC (remove if not needed)
 
@@ -13,32 +13,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          python -m venv venv
+          python3 -m venv venv
           source venv/bin/activate
+          pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run migrations
+      - name: Run migrations (prod settings)
         env:
-          DJANGO_SETTINGS_MODULE: your_project.settings  # replace with your actual settings module
+          DJANGO_SETTINGS_MODULE: jiujitsuteria.settings.prod
         run: |
           source venv/bin/activate
-          python manage.py migrate --noinput
+          python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod
 
-      - name: Dump database data (dry run safe)
+      - name: Dump database data (safe for dry-run)
         env:
-          DJANGO_SETTINGS_MODULE: your_project.settings
+          DJANGO_SETTINGS_MODULE: jiujitsuteria.settings.prod
         run: |
           source venv/bin/activate
           mkdir -p dev-dumps
           timestamp=$(date +"%Y%m%d%H%M%S")
-          python manage.py dumpdata --natural-primary --natural-foreign --indent 2 > dev-dumps/data_$timestamp.json
+          dump_file="dev-dumps/data_${timestamp}.json"
+          echo "Dumping data to $dump_file ..."
+          python3 manage.py dumpdata \
+            --natural-primary \
+            --natural-foreign \
+            --indent 2 \
+            --settings=jiujitsuteria.settings.prod \
+            Video Tag Position Technique Guard > $dump_file
+          echo "✅ Data dump complete: $dump_file"
 
       - name: Upload dump to S3
         env:
@@ -46,7 +55,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ap-southeast-1
         run: |
+          echo "Uploading latest dump to S3..."
           aws s3 cp dev-dumps/data_*.json s3://jiujitsuteria-mediia/dev-dumps/ --storage-class STANDARD
+          echo "✅ Upload complete."
 
       - name: Keep only last 3 backups on S3
         env:
@@ -54,7 +65,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ap-southeast-1
         run: |
-          # List all dumps sorted by date (newest first)
+          echo "Cleaning up old backups..."
           files=$(aws s3 ls s3://jiujitsuteria-mediia/dev-dumps/ | sort -r | awk '{print $4}')
           count=0
           for file in $files; do
@@ -64,6 +75,7 @@ jobs:
               aws s3 rm s3://jiujitsuteria-mediia/dev-dumps/$file
             fi
           done
+          echo "✅ Only last 3 backups retained."
 
       - name: Verify S3 contents
         env:
