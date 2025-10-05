@@ -16,6 +16,10 @@ jobs:
   sync-data:
     runs-on: ubuntu-latest
 
+    # Require manual approval for full-sync via the protected environment
+    environment:
+      name: ${{ github.event.inputs.mode == 'full-sync' && 'production' || 'development' }}
+
     env:
       AWS_REGION: ap-southeast-1
       AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
@@ -94,5 +98,6 @@ jobs:
       # -------------------------
       - name: Sync Complete
         if: always()
-        run: echo "✅ Sync data job finished (mode: ${{ github.event.inputs.mode }})"
+        run: |
+          echo "✅ Sync data job finished (mode: ${{ github.event.inputs.mode }})"
 
