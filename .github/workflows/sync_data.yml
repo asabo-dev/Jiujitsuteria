@@ -15,7 +15,6 @@ on:
 jobs:
   sync-data:
     runs-on: ubuntu-latest
-    name: Sync Data (Dev → Prod)
 
     env:
       AWS_REGION: ap-southeast-1
@@ -24,32 +23,14 @@ jobs:
       DEV_DB_FILE: db.sqlite3
 
     steps:
-      # -------------------------
-      # 1️⃣ Checkout code
-      # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------
-      # 2️⃣ Set mode variable
-      # -------------------------
-      - name: Set mode variable
-        run: |
-          MODE="${{ github.event.inputs.mode }}"
-          echo "MODE=$MODE" >> $GITHUB_ENV
-          echo "Workflow mode set to: $MODE"
-
-      # -------------------------
-      # 3️⃣ Setup Python
-      # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      # -------------------------
-      # 4️⃣ Install dependencies (pinned)
-      # -------------------------
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -57,9 +38,6 @@ jobs:
           pip install -r requirements.txt
           pip install awscli
 
-      # -------------------------
-      # 5️⃣ Configure AWS CLI
-      # -------------------------
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -67,47 +45,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # -------------------------
-      # 6️⃣ Ensure Dev SQLite DB
-      # -------------------------
-      - name: Ensure Dev SQLite DB
+      - name: Ensure Dev DB is present
         run: |
-          echo "Checking if dev database exists locally..."
           if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
-            echo "Attempting to download dev DB from S3..."
-            if aws s3 ls "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" > /dev/null 2>&1; then
-              aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
-              echo "✅ Dev database downloaded successfully."
-            else
-              echo "⚠️  WARNING: Dev DB not found in S3. Continuing with local context..."
-            fi
-          else
-            echo "✅ Dev DB already present locally."
+            echo "Dev DB not found locally. Attempting download from S3..."
+            aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" . || exit 1
           fi
+          echo "✅ Dev DB ready: ${{ env.DEV_DB_FILE }}"
 
-          if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
-            echo "❌ ERROR: db.sqlite3 not found locally or in S3."
-            exit 1
-          fi
-
-      # -------------------------
-      # 7️⃣ Run sync_data.sh
-      # -------------------------
       - name: Run sync_data.sh
         run: |
           chmod +x scripts/sync_data.sh
-          if [ "$MODE" = "dry-run" ]; then
-            echo "🔍 Running dry-run..."
+          if [ "${{ github.event.inputs.mode }}" == "dry-run" ]; then
             ./scripts/sync_data.sh --dry-run
           else
-            echo "🚀 Running full data sync (Prod will be updated)..."
             ./scripts/sync_data.sh
+          fi
 
-      # -------------------------
-      # 8️⃣ Completion log
-      # -------------------------
       - name: Sync Complete
         if: always()
-        run: |
-          echo "✅ Sync data job finished successfully (mode: $MODE)"
+        run: echo "✅ Sync job finished (mode: ${{ github.event.inputs.mode }})"
 

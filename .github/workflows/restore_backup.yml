@@ -21,43 +21,29 @@ jobs:
       AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
 
     steps:
-      # -------------------------
-      # 1️⃣ Safety Check
-      # -------------------------
       - name: Confirm Restore
         run: |
           if [ "${{ github.event.inputs.confirm_restore }}" != "YES" ]; then
             echo "❌ Confirmation missing. To proceed, set confirm_restore=YES."
             exit 1
           fi
-          echo "✅ Confirmation received. Proceeding with restore."
+          echo "✅ Confirmation received."
 
-      # -------------------------
-      # 2️⃣ Checkout code
-      # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------
-      # 3️⃣ Setup Python
-      # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      # -------------------------
-      # 4️⃣ Install dependencies
-      # -------------------------
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
+          pip install boto3==1.38.37 "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
           pip install -r requirements.txt
           pip install awscli
 
-      # -------------------------
-      # 5️⃣ Configure AWS credentials
-      # -------------------------
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -65,31 +51,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # -------------------------
-      # 6️⃣ Download backup from S3
-      # -------------------------
-      - name: Download selected backup file from S3
+      - name: Download backup from S3
         run: |
           BACKUP_FILE="${{ github.event.inputs.backup_file }}"
-          echo "Fetching backup file: $BACKUP_FILE"
+          echo "Fetching backup: $BACKUP_FILE"
           aws s3 cp "s3://${{ env.AWS_BUCKET_BACKUP }}/$BACKUP_FILE" ./ || exit 1
-          echo "✅ Backup downloaded successfully."
+          echo "✅ Backup downloaded."
 
-      # -------------------------
-      # 7️⃣ Restore backup to production DB
-      # -------------------------
-      - name: Restore data to Production
+      - name: Restore backup to PROD
         run: |
           chmod +x scripts/sync_data.sh
-          echo "🚀 Restoring backup to production..."
           ./scripts/sync_data.sh --rollback "${{ github.event.inputs.backup_file }}"
-          echo "✅ Restore completed successfully."
+          echo "✅ Restore completed."
 
-      # -------------------------
-      # 8️⃣ Completion log
-      # -------------------------
-      - name: Job Complete
+      - name: Restore Complete
         if: always()
-        run: echo "✅ Restore job completed for backup: ${{ github.event.inputs.backup_file }}"
-
+        run: echo "✅ Restore job finished for backup: ${{ github.event.inputs.backup_file }}"
 
