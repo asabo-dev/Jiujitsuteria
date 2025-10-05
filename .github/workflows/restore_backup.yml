@@ -6,7 +6,6 @@ on:
       backup_file:
         description: "Enter the exact backup filename (e.g., backup_20251005_1530.json)"
         required: true
-        default: ""
       confirm_restore:
         description: "Type YES to confirm you want to overwrite the production DB"
         required: true
@@ -17,14 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-southeast-1
-      AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
 
     steps:
-      - name: Confirm Restore
+      - name: Safety Confirmation
         run: |
           if [ "${{ github.event.inputs.confirm_restore }}" != "YES" ]; then
-            echo "❌ Confirmation missing. To proceed, set confirm_restore=YES."
+            echo "❌ Confirmation missing. Set confirm_restore=YES to proceed."
             exit 1
           fi
           echo "✅ Confirmation received."
@@ -40,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install boto3==1.38.37 "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
+          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
           pip install -r requirements.txt
           pip install awscli
 
@@ -54,17 +53,10 @@ jobs:
       - name: Download backup from S3
         run: |
           BACKUP_FILE="${{ github.event.inputs.backup_file }}"
-          echo "Fetching backup: $BACKUP_FILE"
-          aws s3 cp "s3://${{ env.AWS_BUCKET_BACKUP }}/$BACKUP_FILE" ./ || exit 1
-          echo "✅ Backup downloaded."
+          aws s3 cp "s3://${{ env.AWS_BUCKET_BACKUP }}/$BACKUP_FILE" . || exit 1
+          echo "✅ Backup downloaded successfully: $BACKUP_FILE"
 
-      - name: Restore backup to PROD
+      - name: Restore backup
         run: |
-          chmod +x scripts/sync_data.sh
-          ./scripts/sync_data.sh --rollback "${{ github.event.inputs.backup_file }}"
-          echo "✅ Restore completed."
-
-      - name: Restore Complete
-        if: always()
-        run: echo "✅ Restore job finished for backup: ${{ github.event.inputs.backup_file }}"
+          chmod +x scripts/sync
 
