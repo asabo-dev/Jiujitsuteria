@@ -4,74 +4,95 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Choose sync mode"
+        description: "Choose mode: dry-run or full-sync"
         required: true
-        default: "full"
+        default: "dry-run"
         type: choice
         options:
-          - full
           - dry-run
-          - rollback
-      rollback_file:
-        description: "Filename to restore (required if mode=rollback)"
-        required: false
-        type: string
+          - full-sync
 
 jobs:
-  sync:
+  sync-data:
     runs-on: ubuntu-latest
 
     env:
       AWS_REGION: ap-southeast-1
-      PROD_HOST: deploy@ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com
-      DEV_DB_S3_PATH: s3://jiujitsuteria-mediia/dev-db/db.sqlite3
+      AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
+      AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
+      DEV_DB_FILE: db.sqlite3
 
     steps:
-      - name: Checkout code
+      # -------------------------
+      # 1️⃣ Checkout code
+      # -------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -------------------------
+      # 2️⃣ Setup Python environment
+      # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.x'
 
+      # -------------------------
+      # 3️⃣ Install dependencies
+      # -------------------------
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           pip install -r requirements.txt
-          sudo apt-get install -y awscli
+          pip install awscli
 
-      - name: Configure AWS credentials
+      # -------------------------
+      # 4️⃣ Configure AWS credentials
+      # -------------------------
+      - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download dev SQLite DB from S3
+      # -------------------------
+      # 5️⃣ Ensure Dev SQLite DB is available
+      # -------------------------
+      - name: Download Dev SQLite DB from S3
         run: |
-          echo "Downloading dev SQLite DB from S3..."
-          aws s3 cp $DEV_DB_S3_PATH ./db.sqlite3
-          ls -lh db.sqlite3
-          echo "✅ Dev DB successfully downloaded."
+          echo "Checking if dev database exists locally..."
+          if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
+            echo "Downloading dev DB from S3..."
+            aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
+          else
+            echo "Dev DB already exists locally, skipping download."
+          fi
 
-      - name: Make sync script executable
-        run: chmod +x scripts/sync_data.sh
-
-      - name: Run full sync
-        if: ${{ github.event.inputs.mode == 'full' }}
-        run: ./scripts/sync_data.sh
-
-      - name: Run dry-run sync
-        if: ${{ github.event.inputs.mode == 'dry-run' }}
-        run: ./scripts/sync_data.sh --dry-run
-
-      - name: Run rollback
-        if: ${{ github.event.inputs.mode == 'rollback' }}
-        run: |
-          if [ -z "${{ github.event.inputs.rollback_file }}" ]; then
-            echo "❌ rollback_file input is required for rollback mode!"
+          if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
+            echo "❌ ERROR: db.sqlite3 not found locally or in S3."
             exit 1
           fi
-          ./scripts/sync_data.sh --rollback "${{ github.event.inputs.rollback_file }}"
+          echo "✅ Dev database ready: ${{ env.DEV_DB_FILE }}"
+
+      # -------------------------
+      # 6️⃣ Run data sync script (dry-run or full-sync)
+      # -------------------------
+      - name: Run sync_data.sh
+        run: |
+          chmod +x scripts/sync_data.sh
+          if [ "${{ github.event.inputs.mode }}" == "dry-run" ]; then
+            echo "🔍 Running dry-run..."
+            ./scripts/sync_data.sh --dry-run
+          else
+            echo "🚀 Running full data sync (Prod will be updated)..."
+            ./scripts/sync_data.sh
+          fi
+
+      # -------------------------
+      # 7️⃣ Completion log
+      # -------------------------
+      - name: Sync Complete
+        if: always()
+        run: echo "✅ Sync data job finished (mode: ${{ github.event.inputs.mode }})"
 

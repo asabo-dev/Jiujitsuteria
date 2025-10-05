@@ -1,0 +1,95 @@
+name: Restore Backup to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_file:
+        description: "Enter the exact backup filename (e.g., backup_20251005_1530.json)"
+        required: true
+        default: ""
+      confirm_restore:
+        description: "Type YES to confirm you want to overwrite the production DB"
+        required: true
+        default: "NO"
+
+jobs:
+  restore-backup:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-southeast-1
+      AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
+
+    steps:
+      # -------------------------
+      # 1️⃣ Safety Check
+      # -------------------------
+      - name: Confirm Restore
+        run: |
+          if [ "${{ github.event.inputs.confirm_restore }}" != "YES" ]; then
+            echo "❌ Confirmation missing. To proceed, set confirm_restore=YES."
+            exit 1
+          fi
+          echo "✅ Confirmation received. Proceeding with restore."
+
+      # -------------------------
+      # 2️⃣ Checkout code
+      # -------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # 3️⃣ Setup Python
+      # -------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # -------------------------
+      # 4️⃣ Install dependencies
+      # -------------------------
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install awscli
+
+      # -------------------------
+      # 5️⃣ Configure AWS credentials
+      # -------------------------
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # -------------------------
+      # 6️⃣ Download backup from S3
+      # -------------------------
+      - name: Download selected backup file from S3
+        run: |
+          BACKUP_FILE="${{ github.event.inputs.backup_file }}"
+          echo "Fetching backup file: $BACKUP_FILE"
+          aws s3 cp "s3://${{ env.AWS_BUCKET_BACKUP }}/$BACKUP_FILE" ./ || exit 1
+          echo "✅ Backup downloaded successfully."
+
+      # -------------------------
+      # 7️⃣ Restore backup to production DB
+      # -------------------------
+      - name: Restore data to Production
+        run: |
+          chmod +x scripts/sync_data.sh
+          echo "🚀 Restoring backup to production..."
+          ./scripts/sync_data.sh --rollback "${{ github.event.inputs.backup_file }}"
+          echo "✅ Restore completed successfully."
+
+      # -------------------------
+      # 8️⃣ Completion log
+      # -------------------------
+      - name: Job Complete
+        if: always()
+        run: echo "✅ Restore job completed for backup: ${{ github.event.inputs.backup_file }}"
+
+
