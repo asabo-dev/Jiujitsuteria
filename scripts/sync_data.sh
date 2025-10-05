@@ -1,8 +1,8 @@
 #!/bin/bash
 # =====================================================================
-# Syncs BJJ models from Dev (SQLite) → Prod (RDS)
-# Supports auto-backup, rollback, S3 backup storage, 
-# backup rotation (keep last 3), and --dry-run support.
+# Syncs only BJJ app models from Dev → Prod
+# Supports auto-backup, rollback, S3 backup storage,
+# backup rotation, dry-run, and internal JSON validation.
 # =====================================================================
 set -euo pipefail
 
@@ -14,6 +14,8 @@ PROD_PATH="/home/deploy/bjj_app/current"
 SHARED_PATH="/home/deploy/bjj_app/shared"
 TMP_FILE="bjj_data.json"
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).json"
+
+# Only sync your app's models
 MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
 BACKUP_BUCKET="s3://jiujitsuteria-mediia/backups"
@@ -22,6 +24,23 @@ DEV_DUMP_PATH="s3://jiujitsuteria-mediia/dev-dumps"
 # -------------------------
 # Functions
 # -------------------------
+
+validate_json() {
+  local FILE=$1
+  echo "[*] Validating JSON file: $FILE"
+  if ! command -v jq > /dev/null; then
+    echo "❌ jq is required to validate JSON."
+    exit 1
+  fi
+  MODELS_IN_FILE=$(jq -r '.[].model' "$FILE" | sort -u)
+  for m in $MODELS_IN_FILE; do
+    if ! [[ " $MODELS " =~ " $m " ]]; then
+      echo "❌ Validation failed: Disallowed model found in JSON: $m"
+      exit 1
+    fi
+  done
+  echo "[✓] JSON validation passed. Only allowed models present."
+}
 
 sync_data() {
   local DRY_RUN=${1:-false}
@@ -38,68 +57,52 @@ sync_data() {
   echo "[✓] Dev database found: db.sqlite3"
 
   # DEV migrations & dump
-  echo "[1/8] Running migrations on DEV..."
+  echo "[1/7] Running migrations on DEV..."
   python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.dev
 
-  echo "[2/8] Dumping DEV data..."
+  echo "[2/7] Dumping DEV app data..."
   python3 manage.py dumpdata $MODELS \
     --natural-foreign --natural-primary --indent 2 \
     --settings=jiujitsuteria.settings.dev > "$TMP_FILE"
 
+  # Validate JSON locally before upload
+  validate_json "$TMP_FILE"
+
   # Upload DEV dump to S3
-  echo "[3/8] Uploading DEV dump to S3..."
+  echo "[3/7] Uploading DEV dump to S3..."
   aws s3 cp "$TMP_FILE" "$DEV_DUMP_PATH/$TMP_FILE"
   echo "[✓] Uploaded to $DEV_DUMP_PATH/$TMP_FILE"
 
   # PROD migrations
-  echo "[4/8] Running migrations on PROD..."
+  echo "[4/7] Running migrations on PROD..."
   ssh "$PROD_HOST" "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod"
 
-  # Backup PROD
-  echo "[5/8] Backing up PROD DB..."
+  # Backup PROD app data only
+  echo "[5/7] Backing up PROD app data..."
   ssh "$PROD_HOST" "cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py dumpdata $MODELS \
       --natural-foreign --natural-primary --indent 2 \
       --settings=jiujitsuteria.settings.prod > $SHARED_PATH/$BACKUP_FILE"
 
   # Upload PROD backup to S3
-  echo "[6/8] Uploading PROD backup to S3..."
+  echo "[6/7] Uploading PROD backup to S3..."
   ssh "$PROD_HOST" "aws s3 cp $SHARED_PATH/$BACKUP_FILE $BACKUP_BUCKET/"
   echo "[✓] Backup uploaded to $BACKUP_BUCKET/$BACKUP_FILE"
 
-  # Prune old backups (keep last 3)
-  echo "[7/8] Pruning old S3 backups..."
-  OLD_FILES=$(aws s3 ls "$BACKUP_BUCKET/" | awk '{print $4}' | grep '^backup_' | sort)
-  if [ -n "$OLD_FILES" ]; then
-    COUNT=$(echo "$OLD_FILES" | wc -l)
-    if [ "$COUNT" -gt 3 ]; then
-      TO_DELETE_COUNT=$((COUNT - 3))
-      echo "$OLD_FILES" | head -n "$TO_DELETE_COUNT" | while read -r oldf; do
-        [ -n "$oldf" ] && aws s3 rm "$BACKUP_BUCKET/$oldf"
-        echo "Deleted old backup: $oldf"
-      done
-    else
-      echo "No prune needed ($COUNT backups found)."
-    fi
-  else
-    echo "No S3 backups found to prune."
-  fi
-
   # Dry-run exit
   if [ "$DRY_RUN" == "true" ]; then
-    echo "[8/8] Dry-run complete — skipping PROD load."
+    echo "[7/7] Dry-run complete — skipping PROD load."
     rm -f "$TMP_FILE"
     return 0
   fi
 
   # Load DEV dump into PROD
-  echo "[8/8] Loading DEV dump into PROD DB..."
+  echo "[7/7] Loading DEV app data into PROD..."
   ssh "$PROD_HOST" "aws s3 cp $DEV_DUMP_PATH/$TMP_FILE $SHARED_PATH/$TMP_FILE && \
     cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
-    python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.prod && \
     python3 manage.py loaddata $SHARED_PATH/$TMP_FILE --settings=jiujitsuteria.settings.prod"
-  echo "[✓] Sync complete — PROD updated with latest DEV data."
+  echo "[✓] Sync complete — PROD updated with latest DEV app data."
 
   # Cleanup
   rm -f "$TMP_FILE"
@@ -113,10 +116,9 @@ rollback() {
   local BACKUP_TO_RESTORE=$1
   echo "[*] Restoring PROD from $BACKUP_TO_RESTORE ..."
 
-  if ! aws s3 ls "$BACKUP_BUCKET/$BACKUP_TO_RESTORE" > /dev/null 2>&1; then
-    echo "❌ Backup file not found in S3!"
-    exit 1
-  fi
+  # Validate backup JSON locally (download from S3 first)
+  aws s3 cp "$BACKUP_BUCKET/$BACKUP_TO_RESTORE" "$BACKUP_TO_RESTORE"
+  validate_json "$BACKUP_TO_RESTORE"
 
   ssh "$PROD_HOST" "aws s3 cp $BACKUP_BUCKET/$BACKUP_TO_RESTORE $SHARED_PATH/$BACKUP_TO_RESTORE && \
     cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \

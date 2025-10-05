@@ -19,6 +19,8 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
+      REMOTE_HOST: "ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com"
+      ALLOWED_MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
     steps:
       - name: Confirm Restore
@@ -40,9 +42,9 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
+          pip install boto3==1.38.37 botocore==1.38.37 s3transfer==0.13.1
           pip install -r requirements.txt
-          pip install awscli
+          pip install awscli jq
 
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
@@ -51,12 +53,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Add SSH key to known_hosts
+        run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+
       - name: Download selected backup from S3
         run: |
           BACKUP_FILE="${{ github.event.inputs.backup_file }}"
           echo "Fetching backup file: $BACKUP_FILE"
           aws s3 cp "s3://${AWS_BUCKET_BACKUP}/${BACKUP_FILE}" ./ || exit 1
           echo "✅ Backup downloaded successfully."
+
+      - name: Validate Backup Contents
+        run: |
+          echo "🔍 Validating that backup contains only allowed app models..."
+          MODELS_IN_FILE=$(jq -r '.[].model' "$BACKUP_FILE" | sort -u)
+          for m in $MODELS_IN_FILE; do
+            if ! [[ " $ALLOWED_MODELS " =~ " $m " ]]; then
+              echo "❌ Backup contains disallowed model: $m"
+              exit 1
+            fi
+          done
+          echo "✅ Backup validation passed. Only allowed models present."
 
       - name: Restore data to Production
         run: |

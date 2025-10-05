@@ -1,4 +1,4 @@
-name: Sync Data (Dev → Prod)
+name: Sync BJJ App Data (Dev → Prod)
 
 on:
   workflow_dispatch:
@@ -20,7 +20,8 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_BUCKET_DEV_DUMP: ${{ vars.AWS_BUCKET_DEV_DUMP }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
-      DEV_DB_FILE: db.sqlite3
+      REMOTE_HOST: "ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com"
+      ALLOWED_MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
     steps:
       - name: Checkout repository
@@ -31,12 +32,12 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install dependencies (with pinned versions)
+      - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
+          pip install boto3==1.38.37 botocore==1.38.37 s3transfer==0.13.1
           pip install -r requirements.txt
-          pip install awscli
+          pip install awscli jq
 
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
@@ -45,20 +46,32 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Ensure Dev SQLite DB exists
+      - name: Add SSH key to known_hosts
+        run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+
+      - name: Ensure Dev dump JSON exists
         run: |
-          if [ ! -f "${DEV_DB_FILE}" ]; then
-            echo "Attempting to download dev DB from S3..."
-            if aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/${DEV_DB_FILE}" > /dev/null 2>&1; then
-              aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/${DEV_DB_FILE}" .
-              echo "✅ Dev database downloaded successfully."
-            else
-              echo "❌ ERROR: Dev DB not found in S3. Please upload it."
+          if ! aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" > /dev/null 2>&1; then
+            echo "❌ Dev app data JSON not found in S3. Please upload it first."
+            exit 1
+          fi
+          echo "✅ Dev app data JSON exists in S3."
+
+      - name: Download Dev dump JSON
+        run: |
+          aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" ./bjj_data.json
+
+      - name: Validate Dev JSON Contents
+        run: |
+          echo "🔍 Validating that DEV JSON contains only allowed app models..."
+          MODELS_IN_FILE=$(jq -r '.[].model' bjj_data.json | sort -u)
+          for m in $MODELS_IN_FILE; do
+            if ! [[ " $ALLOWED_MODELS " =~ " $m " ]]; then
+              echo "❌ DEV dump contains disallowed model: $m"
               exit 1
             fi
-          else
-            echo "✅ Dev DB already exists locally."
-          fi
+          done
+          echo "✅ DEV JSON validation passed. Only allowed models present."
 
       - name: Run sync_data.sh
         run: |
@@ -67,11 +80,11 @@ jobs:
             echo "🔍 Running dry-run..."
             ./scripts/sync_data.sh --dry-run
           else
-            echo "🚀 Running full data sync (Prod will be updated)..."
+            echo "🚀 Running full data sync..."
             ./scripts/sync_data.sh
           fi
 
       - name: Sync Complete
         if: always()
-        run: echo "✅ Sync data job finished successfully"
+        run: echo "✅ Sync data job finished successfully."
 
