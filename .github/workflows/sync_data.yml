@@ -4,26 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Choose mode: dry-run or full-sync"
+        description: "Choose mode: dry-run, full-sync-dry-run, or full-sync"
         required: true
         default: "dry-run"
         type: choice
         options:
           - dry-run
+          - full-sync-dry-run
           - full-sync
+
+env:
+  AWS_REGION: ap-southeast-1
+  AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
+  AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
+  DEV_DB_FILE: db.sqlite3
 
 jobs:
   sync-data:
     runs-on: ubuntu-latest
-
-    environment:
-      name: ${{ github.event.inputs.mode == 'full-sync' && 'production' || 'development' }}
-
-    env:
-      AWS_REGION: ap-southeast-1
-      AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
-      AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
-      DEV_DB_FILE: db.sqlite3
+    name: Run sync data (mode: ${{ github.event.inputs.mode }})
+    environment: ${{ github.event.inputs.mode == 'full-sync' || github.event.inputs.mode == 'full-sync-dry-run'  && 'production' || 'development' }}
 
     steps:
       # -------------------------
@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
 
       # -------------------------
-      # 2️⃣ Setup Python environment
+      # 2️⃣ Setup Python
       # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,7 +41,7 @@ jobs:
           python-version: '3.x'
 
       # -------------------------
-      # 3️⃣ Install dependencies (with pinned versions)
+      # 3️⃣ Install dependencies
       # -------------------------
       - name: Install dependencies
         run: |
@@ -63,7 +63,7 @@ jobs:
       # -------------------------
       # 5️⃣ Ensure Dev SQLite DB is available
       # -------------------------
-      - name: Download Dev SQLite DB from S3 (or warn if missing)
+      - name: Download Dev SQLite DB from S3
         run: |
           echo "Checking if dev database exists locally..."
           if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
@@ -72,35 +72,30 @@ jobs:
               aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
               echo "✅ Dev database downloaded successfully."
             else
-              echo "⚠️  WARNING: Dev DB not found in S3. Continuing with local context..."
+              echo "❌ ERROR: Dev DB not found in S3. Upload db.sqlite3 or switch to dry-run."
+              exit 1
             fi
           else
             echo "✅ Dev DB already present locally."
-          fi
-
-          if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
-            echo "❌ ERROR: db.sqlite3 not found locally or in S3. Please upload it to S3 or ensure dev DB exists."
-            exit 1
-          fi
 
       # -------------------------
-      # 6️⃣ Run data sync script (dry-run or full-sync)
+      # 6️⃣ Run data sync script
       # -------------------------
       - name: Run sync_data.sh
         run: |
           chmod +x scripts/sync_data.sh
-          if [ "${{ github.event.inputs.mode }}" == "dry-run" ]; then
+          if [ "${{ github.event.inputs.mode }}" == "dry-run" ] || [ "${{ github.event.inputs.mode }}" == "full-sync-dry-run" ]; then
             echo "🔍 Running dry-run..."
             ./scripts/sync_data.sh --dry-run
           else
             echo "🚀 Running full data sync (Prod will be updated)..."
             ./scripts/sync_data.sh
-          fi
 
       # -------------------------
       # 7️⃣ Completion log
       # -------------------------
       - name: Sync Complete
         if: always()
-        run: echo "✅ Sync data job finished successfully (mode: ${{ github.event.inputs.mode }})"
+        run: |
+          echo "✅ Sync data job finished successfully (mode: ${{ github.event.inputs.mode }})"
 
