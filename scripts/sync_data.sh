@@ -1,11 +1,14 @@
 #!/bin/bash
 # =====================================================================
 # Syncs BJJ models from Dev (SQLite) → Prod (RDS)
-# Includes auto-backup, rollback support, S3 backup storage,
+# Supports auto-backup, rollback, S3 backup storage, 
 # backup rotation (keep last 3), and --dry-run support.
 # =====================================================================
 set -euo pipefail
 
+# -------------------------
+# Config
+# -------------------------
 PROD_HOST="deploy@ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com"
 PROD_PATH="/home/deploy/bjj_app/current"
 SHARED_PATH="/home/deploy/bjj_app/shared"
@@ -13,8 +16,8 @@ TMP_FILE="bjj_data.json"
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).json"
 MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
-BACKUP_BUCKET="s3://$AWS_BUCKET_BACKUP"
-DEV_DUMP_PATH="s3://$AWS_BUCKET_DEV_DUMP"
+BACKUP_BUCKET="s3://jiujitsuteria-mediia/backups"
+DEV_DUMP_PATH="s3://jiujitsuteria-mediia/dev-dumps"
 
 # -------------------------
 # Functions

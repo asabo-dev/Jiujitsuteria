@@ -6,6 +6,7 @@ on:
       backup_file:
         description: "Enter the exact backup filename (e.g., backup_20251005_1530.json)"
         required: true
+        default: ""
       confirm_restore:
         description: "Type YES to confirm you want to overwrite the production DB"
         required: true
@@ -20,10 +21,10 @@ jobs:
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
 
     steps:
-      - name: Safety Confirmation
+      - name: Confirm Restore
         run: |
           if [ "${{ github.event.inputs.confirm_restore }}" != "YES" ]; then
-            echo "❌ Confirmation missing. Set confirm_restore=YES to proceed."
+            echo "❌ Confirmation missing. To proceed, set confirm_restore=YES."
             exit 1
           fi
           echo "✅ Confirmation received."
@@ -50,13 +51,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download backup from S3
+      - name: Download selected backup from S3
         run: |
           BACKUP_FILE="${{ github.event.inputs.backup_file }}"
-          aws s3 cp "s3://${{ env.AWS_BUCKET_BACKUP }}/$BACKUP_FILE" . || exit 1
-          echo "✅ Backup downloaded successfully: $BACKUP_FILE"
+          echo "Fetching backup file: $BACKUP_FILE"
+          aws s3 cp "s3://${AWS_BUCKET_BACKUP}/${BACKUP_FILE}" ./ || exit 1
+          echo "✅ Backup downloaded successfully."
 
-      - name: Restore backup
+      - name: Restore data to Production
         run: |
-          chmod +x scripts/sync
+          chmod +x scripts/sync_data.sh
+          echo "🚀 Restoring backup to production..."
+          ./scripts/sync_data.sh --rollback "${{ github.event.inputs.backup_file }}"
+          echo "✅ Restore completed successfully."
 

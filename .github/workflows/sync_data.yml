@@ -20,6 +20,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_BUCKET_DEV_DUMP: ${{ vars.AWS_BUCKET_DEV_DUMP }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
+      DEV_DB_FILE: db.sqlite3
 
     steps:
       - name: Checkout repository
@@ -30,7 +31,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install dependencies
+      - name: Install dependencies (with pinned versions)
         run: |
           python3 -m pip install --upgrade pip
           pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
@@ -44,26 +45,33 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download Dev SQLite DB
+      - name: Ensure Dev SQLite DB exists
         run: |
-          if [ ! -f "db.sqlite3" ]; then
-            aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/db.sqlite3" .
-          fi
-          if [ ! -f "db.sqlite3" ]; then
-            echo "❌ db.sqlite3 not found. Upload to S3 or ensure it exists locally."
-            exit 1
+          if [ ! -f "${DEV_DB_FILE}" ]; then
+            echo "Attempting to download dev DB from S3..."
+            if aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/${DEV_DB_FILE}" > /dev/null 2>&1; then
+              aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/${DEV_DB_FILE}" .
+              echo "✅ Dev database downloaded successfully."
+            else
+              echo "❌ ERROR: Dev DB not found in S3. Please upload it."
+              exit 1
+            fi
+          else
+            echo "✅ Dev DB already exists locally."
           fi
 
       - name: Run sync_data.sh
         run: |
           chmod +x scripts/sync_data.sh
           if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then
+            echo "🔍 Running dry-run..."
             ./scripts/sync_data.sh --dry-run
           else
+            echo "🚀 Running full data sync (Prod will be updated)..."
             ./scripts/sync_data.sh
           fi
 
       - name: Sync Complete
         if: always()
-        run: echo "✅ Sync data job finished successfully (mode: $MODE)"
+        run: echo "✅ Sync data job finished successfully"
 
