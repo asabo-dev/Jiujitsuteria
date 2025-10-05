@@ -4,36 +4,43 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Choose mode: dry-run, full-sync-dry-run, or full-sync"
+        description: "Choose mode: dry-run or full-sync"
         required: true
         default: "dry-run"
         type: choice
         options:
           - dry-run
-          - full-sync-dry-run
           - full-sync
-
-env:
-  AWS_REGION: ap-southeast-1
-  AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
-  AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
-  DEV_DB_FILE: db.sqlite3
 
 jobs:
   sync-data:
     runs-on: ubuntu-latest
-    name: Run sync data (mode: ${{ github.event.inputs.mode }})
-    environment: ${{ github.event.inputs.mode == 'full-sync' || github.event.inputs.mode == 'full-sync-dry-run'  && 'production' || 'development' }}
+    name: Sync Data (Dev → Prod)
+
+    env:
+      AWS_REGION: ap-southeast-1
+      AWS_BUCKET_DEV_DUMP: jiujitsuteria-mediia/dev-dumps
+      AWS_BUCKET_BACKUP: jiujitsuteria-mediia/backups
+      DEV_DB_FILE: db.sqlite3
 
     steps:
       # -------------------------
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout code
       # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # -------------------------
-      # 2️⃣ Setup Python
+      # 2️⃣ Set mode variable
+      # -------------------------
+      - name: Set mode variable
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          echo "MODE=$MODE" >> $GITHUB_ENV
+          echo "Workflow mode set to: $MODE"
+
+      # -------------------------
+      # 3️⃣ Setup Python
       # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,17 +48,17 @@ jobs:
           python-version: '3.x'
 
       # -------------------------
-      # 3️⃣ Install dependencies
+      # 4️⃣ Install dependencies (pinned)
       # -------------------------
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
+          pip install boto3==1.38.37 "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
           pip install -r requirements.txt
           pip install awscli
 
       # -------------------------
-      # 4️⃣ Configure AWS credentials
+      # 5️⃣ Configure AWS CLI
       # -------------------------
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
@@ -61,9 +68,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # -------------------------
-      # 5️⃣ Ensure Dev SQLite DB is available
+      # 6️⃣ Ensure Dev SQLite DB
       # -------------------------
-      - name: Download Dev SQLite DB from S3
+      - name: Ensure Dev SQLite DB
         run: |
           echo "Checking if dev database exists locally..."
           if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
@@ -72,19 +79,24 @@ jobs:
               aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
               echo "✅ Dev database downloaded successfully."
             else
-              echo "❌ ERROR: Dev DB not found in S3. Upload db.sqlite3 or switch to dry-run."
-              exit 1
+              echo "⚠️  WARNING: Dev DB not found in S3. Continuing with local context..."
             fi
           else
             echo "✅ Dev DB already present locally."
+          fi
+
+          if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
+            echo "❌ ERROR: db.sqlite3 not found locally or in S3."
+            exit 1
+          fi
 
       # -------------------------
-      # 6️⃣ Run data sync script
+      # 7️⃣ Run sync_data.sh
       # -------------------------
       - name: Run sync_data.sh
         run: |
           chmod +x scripts/sync_data.sh
-          if [ "${{ github.event.inputs.mode }}" == "dry-run" ] || [ "${{ github.event.inputs.mode }}" == "full-sync-dry-run" ]; then
+          if [ "$MODE" = "dry-run" ]; then
             echo "🔍 Running dry-run..."
             ./scripts/sync_data.sh --dry-run
           else
@@ -92,10 +104,10 @@ jobs:
             ./scripts/sync_data.sh
 
       # -------------------------
-      # 7️⃣ Completion log
+      # 8️⃣ Completion log
       # -------------------------
       - name: Sync Complete
         if: always()
         run: |
-          echo "✅ Sync data job finished successfully (mode: ${{ github.event.inputs.mode }})"
+          echo "✅ Sync data job finished successfully (mode: $MODE)"
 
