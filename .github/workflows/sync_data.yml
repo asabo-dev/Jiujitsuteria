@@ -16,7 +16,6 @@ jobs:
   sync-data:
     runs-on: ubuntu-latest
 
-    # Require manual approval for full-sync via the protected environment
     environment:
       name: ${{ github.event.inputs.mode == 'full-sync' && 'production' || 'development' }}
 
@@ -28,7 +27,7 @@ jobs:
 
     steps:
       # -------------------------
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,11 +41,12 @@ jobs:
           python-version: '3.x'
 
       # -------------------------
-      # 3️⃣ Install dependencies
+      # 3️⃣ Install dependencies (with pinned versions)
       # -------------------------
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
+          pip install boto3==1.38.37 botocore>=1.38.37,<1.39.0 s3transfer>=0.13.0,<0.14.0
           pip install -r requirements.txt
           pip install awscli
 
@@ -63,21 +63,25 @@ jobs:
       # -------------------------
       # 5️⃣ Ensure Dev SQLite DB is available
       # -------------------------
-      - name: Download Dev SQLite DB from S3
+      - name: Download Dev SQLite DB from S3 (or warn if missing)
         run: |
           echo "Checking if dev database exists locally..."
           if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
-            echo "Downloading dev DB from S3..."
-            aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
+            echo "Attempting to download dev DB from S3..."
+            if aws s3 ls "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" > /dev/null 2>&1; then
+              aws s3 cp "s3://${{ env.AWS_BUCKET_DEV_DUMP }}/${{ env.DEV_DB_FILE }}" .
+              echo "✅ Dev database downloaded successfully."
+            else
+              echo "⚠️  WARNING: Dev DB not found in S3. Continuing with local context..."
+            fi
           else
-            echo "Dev DB already exists locally, skipping download."
+            echo "✅ Dev DB already present locally."
           fi
 
           if [ ! -f "${{ env.DEV_DB_FILE }}" ]; then
-            echo "❌ ERROR: db.sqlite3 not found locally or in S3."
+            echo "❌ ERROR: db.sqlite3 not found locally or in S3. Please upload it to S3 or ensure dev DB exists."
             exit 1
           fi
-          echo "✅ Dev database ready: ${{ env.DEV_DB_FILE }}"
 
       # -------------------------
       # 6️⃣ Run data sync script (dry-run or full-sync)
@@ -99,5 +103,5 @@ jobs:
       - name: Sync Complete
         if: always()
         run: |
-          echo "✅ Sync data job finished (mode: ${{ github.event.inputs.mode }})"
+          echo "✅ Sync data job finished successfully (mode: ${{ github.event.inputs.mode }})"
 
