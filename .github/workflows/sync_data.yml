@@ -20,8 +20,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_BUCKET_DEV_DUMP: ${{ vars.AWS_BUCKET_DEV_DUMP }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
-      REMOTE_HOST: "ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com"
-      ALLOWED_MODELS="bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
+      REMOTE_HOST: ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com
 
     steps:
       - name: Checkout repository
@@ -30,14 +29,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y jq
           python3 -m pip install --upgrade pip
-          pip install boto3==1.38.37 botocore==1.38.37 s3transfer==0.13.1
+          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
           pip install -r requirements.txt
-          pip install awscli jq
+          pip install awscli
 
       - name: Configure AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
@@ -46,10 +46,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Add SSH key to known_hosts
+      - name: Add SSH host to known_hosts
         run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
 
-      - name: Ensure Dev dump JSON exists
+      - name: Check if Dev dump JSON exists in S3
         run: |
           if ! aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" > /dev/null 2>&1; then
             echo "❌ Dev app data JSON not found in S3. Please upload it first."
@@ -57,21 +57,13 @@ jobs:
           fi
           echo "✅ Dev app data JSON exists in S3."
 
-      - name: Download Dev dump JSON
-        run: |
-          aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" ./bjj_data.json
+      - name: Download Dev dump JSON (for local validation)
+        run: aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" ./bjj_data.json
 
-      - name: Validate Dev JSON Contents
+      - name: Quick sanity check on JSON (optional)
         run: |
-          echo "🔍 Validating that DEV JSON contains only allowed app models..."
-          MODELS_IN_FILE=$(jq -r '.[].model' bjj_data.json | sort -u)
-          for m in $MODELS_IN_FILE; do
-            if ! [[ " $ALLOWED_MODELS " =~ " $m " ]]; then
-              echo "❌ DEV dump contains disallowed model: $m"
-              exit 1
-            fi
-          done
-          echo "✅ DEV JSON validation passed. Only allowed models present."
+          echo "🔍 Checking JSON structure..."
+          jq '.[0].model' bjj_data.json >/dev/null && echo "✅ JSON structure OK."
 
       - name: Run sync_data.sh
         run: |
@@ -86,5 +78,6 @@ jobs:
 
       - name: Sync Complete
         if: always()
-        run: echo "✅ Sync data job finished successfully."
+        run: |
+          echo "✅ Sync data job finished successfully (mode: ${{ github.event.inputs.mode }})"
 
