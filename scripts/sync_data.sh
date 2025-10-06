@@ -11,7 +11,7 @@ trap 'rm -f "$TMP_FILE"' EXIT
 # -------------------------
 # Config
 # -------------------------
-PROD_HOST="deploy@ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com"
+PROD_HOST="bjj-prod"  # SSH alias
 PROD_PATH="/home/deploy/bjj_app/current"
 SHARED_PATH="/home/deploy/bjj_app/shared"
 TMP_FILE="bjj_data.json"
@@ -19,6 +19,9 @@ BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).json"
 
 # Only sync your app's models
 MODELS='bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard'
+
+# Full path to AWS CLI on PROD
+AWS_CLI_PROD="/home/deploy/bin/aws"
 
 BACKUP_BUCKET="s3://jiujitsuteria-mediia/backups"
 DEV_DUMP_PATH="s3://jiujitsuteria-mediia/dev-dumps"
@@ -46,14 +49,23 @@ validate_json() {
     echo "❌ jq is required to validate JSON."
     exit 1
   fi
+
+  # Normalize MODELS to lowercase for case-insensitive comparison
+  local MODELS_LOWER
+  MODELS_LOWER=$(echo "$MODELS" | tr '[:upper:]' '[:lower:]')
   MODELS_IN_FILE=$(jq -r '.[].model' "$FILE" | sort -u)
+
+  echo "[*] Models found in dump:"
+  echo "$MODELS_IN_FILE" | sed 's/^/   - /'
+
   for m in $MODELS_IN_FILE; do
-    if ! [[ " $MODELS " =~ " $m " ]]; then
+    if ! echo "$MODELS_LOWER" | grep -iq "$m"; then
       echo "❌ Validation failed: Disallowed model found in JSON: $m"
       exit 1
     fi
   done
-  echo "[✓] JSON validation passed."
+
+  echo "[✓] JSON validation passed — all models allowed."
 }
 
 sync_data() {
@@ -94,15 +106,16 @@ sync_data() {
       --settings=jiujitsuteria.settings.prod > $SHARED_PATH/$BACKUP_FILE"
 
   echo "[6/7] Uploading PROD backup to S3..."
-  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "aws s3 cp $SHARED_PATH/$BACKUP_FILE $BACKUP_BUCKET/"
+  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "$AWS_CLI_PROD s3 cp $SHARED_PATH/$BACKUP_FILE $BACKUP_BUCKET/"
 
   if [ "$DRY_RUN" == "true" ]; then
     echo "[7/7] Dry-run complete — skipping PROD load."
+    echo "[✓] Sync dry-run finished successfully (no data written to PROD)."
     return 0
   fi
 
   echo "[7/7] Loading DEV app data into PROD..."
-  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "aws s3 cp $DEV_DUMP_PATH/$TMP_FILE $SHARED_PATH/$TMP_FILE && \
+  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "$AWS_CLI_PROD s3 cp $DEV_DUMP_PATH/$TMP_FILE $SHARED_PATH/$TMP_FILE && \
     cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py loaddata $SHARED_PATH/$TMP_FILE --settings=jiujitsuteria.settings.prod"
 
@@ -119,7 +132,7 @@ rollback() {
   activate_venv
   aws s3 cp "$BACKUP_BUCKET/$BACKUP_TO_RESTORE" "$BACKUP_TO_RESTORE"
   validate_json "$BACKUP_TO_RESTORE"
-  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "aws s3 cp $BACKUP_BUCKET/$BACKUP_TO_RESTORE $SHARED_PATH/$BACKUP_TO_RESTORE && \
+  ssh -o StrictHostKeyChecking=no "$PROD_HOST" "$AWS_CLI_PROD s3 cp $BACKUP_BUCKET/$BACKUP_TO_RESTORE $SHARED_PATH/$BACKUP_TO_RESTORE && \
     cd $PROD_PATH && source $SHARED_PATH/venv/bin/activate && \
     python3 manage.py loaddata $SHARED_PATH/$BACKUP_TO_RESTORE --settings=jiujitsuteria.settings.prod"
   echo "[✓] Rollback complete."
