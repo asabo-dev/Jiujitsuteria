@@ -20,7 +20,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_BUCKET_DEV_DUMP: ${{ vars.AWS_BUCKET_DEV_DUMP }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
-      PROD_HOST: bjj-prod  # Use SSH alias from ~/.ssh/config
+      REMOTE_HOST: ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com
 
     steps:
       - name: Checkout repository
@@ -49,7 +49,7 @@ jobs:
       - name: Add SSH host to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
 
       - name: Ensure local Dev DB exists
         run: |
@@ -77,8 +77,6 @@ jobs:
       - name: Run sync_data.sh
         run: |
           chmod +x scripts/sync_data.sh
-          # Pass PROD_HOST as env variable so the script uses SSH alias
-          export PROD_HOST=${{ env.PROD_HOST }}
           if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then
             echo "🔍 Running dry-run..."
             ./scripts/sync_data.sh --dry-run
