@@ -25,11 +25,18 @@ jobs:
       SHARED_PATH: /home/deploy/bjj_app/shared
       VENV_PATH: /home/deploy/bjj_app/shared/venv
       DJANGO_SETTINGS: jiujitsuteria.settings.prod
-      MODELS: 'bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard'
+      MODELS: "bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS CLI (for aws s3 commands)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,13 +50,6 @@ jobs:
           pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
           pip install -r requirements.txt
           pip install awscli
-
-      - name: Configure AWS CLI (for aws s3 commands)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Confirm Restore (must type YES)
         run: |
@@ -146,5 +146,6 @@ jobs:
 
       - name: Restore Complete
         if: always()
-        run: echo ✅ Backup restore job finished successfully "(file: ${{ env.BACKUP_FILE }})"
+        run: |
+          echo "✅ Backup restore job finished successfully (file: ${{ env.BACKUP_FILE }})"
 
