@@ -8,9 +8,9 @@ on:
         required: true
         default: "latest"
       confirm_restore:
-        description: "Type YES to confirm you want to overwrite production (required)"
+        description: "Type YES to confirm actual restore or DRY-RUN to simulate"
         required: true
-        default: "NO"
+        default: "DRY-RUN"
 
 jobs:
   restore-backup:
@@ -51,13 +51,15 @@ jobs:
           pip install -r requirements.txt
           pip install awscli
 
-      - name: Confirm Restore (must type YES)
+      - name: Confirm Restore or Dry-Run
         run: |
-          if [ "${{ github.event.inputs.confirm_restore }}" != "YES" ]; then
-            echo "❌ Confirmation missing. To proceed, set confirm_restore=YES."
+          CONFIRM="${{ github.event.inputs.confirm_restore }}"
+          if [ "$CONFIRM" != "YES" ] && [ "$CONFIRM" != "DRY-RUN" ]; then
+            echo "❌ Invalid confirmation. Type YES to restore or DRY-RUN to simulate."
             exit 1
           fi
-          echo "✅ Confirmation received."
+          echo "✅ Mode confirmed: $CONFIRM"
+          echo "MODE=$CONFIRM" >> $GITHUB_ENV
 
       - name: Add SSH host key to known_hosts
         run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
@@ -100,6 +102,7 @@ jobs:
           echo "✅ Backup validation passed."
 
       - name: Transfer backup JSON to EC2
+        if: env.MODE == 'YES' || env.MODE == 'DRY-RUN'
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
@@ -109,6 +112,7 @@ jobs:
           echo "✅ Backup transferred to ${REMOTE_HOST}:${SHARED_PATH}/restore.json"
 
       - name: Restore on EC2 (loaddata)
+        if: env.MODE == 'YES'
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
@@ -124,7 +128,8 @@ jobs:
           "
           echo "✅ Remote restore command completed."
 
-      - name: Restart Gunicorn and Nginx
+      - name: Restart Gunicorn and Nginx (only in YES mode)
+        if: env.MODE == 'YES'
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
@@ -147,5 +152,5 @@ jobs:
       - name: Restore Complete
         if: always()
         run: |
-          echo "✅ Backup restore job finished successfully (file: ${{ env.BACKUP_FILE }})"
+          echo "✅ Backup restore job finished successfully (mode: ${{ env.MODE }}, file: ${{ env.BACKUP_FILE }})"
 

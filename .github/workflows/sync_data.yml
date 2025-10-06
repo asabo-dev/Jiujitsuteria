@@ -47,7 +47,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Add SSH host to known_hosts
-        run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
 
       - name: Check if Dev dump JSON exists in S3
         run: |
