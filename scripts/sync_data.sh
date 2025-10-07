@@ -27,6 +27,16 @@ BACKUP_BUCKET="s3://jiujitsuteria-mediia/backups"
 DEV_DUMP_PATH="s3://jiujitsuteria-mediia/dev-dumps"
 
 # -------------------------
+# Environment detection
+# -------------------------
+if [ "${GITHUB_ACTIONS:-false}" == "true" ]; then
+  echo "[*] Detected GitHub Actions environment"
+  RUNNING_IN_ACTIONS=true
+else
+  RUNNING_IN_ACTIONS=false
+fi
+
+# -------------------------
 # Functions
 # -------------------------
 
@@ -50,7 +60,6 @@ validate_json() {
     exit 1
   fi
 
-  # Normalize MODELS to lowercase for case-insensitive comparison
   local MODELS_LOWER
   MODELS_LOWER=$(echo "$MODELS" | tr '[:upper:]' '[:lower:]')
   MODELS_IN_FILE=$(jq -r '.[].model' "$FILE" | sort -u)
@@ -68,6 +77,27 @@ validate_json() {
   echo "[✓] JSON validation passed — all models allowed."
 }
 
+ensure_dev_db() {
+  # Ensure db.sqlite3 exists locally or download from S3 if running in Actions
+  if [ -f "db.sqlite3" ]; then
+    echo "[✓] Dev database found locally."
+    return 0
+  fi
+
+  if [ "$RUNNING_IN_ACTIONS" = true ]; then
+    echo "[!] Local db.sqlite3 not found — attempting download from S3..."
+    if aws s3 cp "$DEV_DUMP_PATH/db.sqlite3" ./db.sqlite3; then
+      echo "[✓] Downloaded db.sqlite3 from S3 successfully."
+    else
+      echo "❌ Failed to download db.sqlite3 from $DEV_DUMP_PATH."
+      exit 1
+    fi
+  else
+    echo "❌ Dev database (db.sqlite3) not found!"
+    exit 1
+  fi
+}
+
 sync_data() {
   local DRY_RUN=${1:-false}
   echo "-----------------------------------------------"
@@ -75,12 +105,7 @@ sync_data() {
   echo "-----------------------------------------------"
 
   activate_venv
-
-  if [ ! -f "db.sqlite3" ]; then
-    echo "❌ Dev database (db.sqlite3) not found!"
-    exit 1
-  fi
-  echo "[✓] Dev database found."
+  ensure_dev_db
 
   echo "[1/7] Running migrations on DEV..."
   python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.dev
