@@ -21,6 +21,12 @@ jobs:
       AWS_BUCKET_DEV_DUMP: ${{ vars.AWS_BUCKET_DEV_DUMP }}
       AWS_BUCKET_BACKUP: ${{ vars.AWS_BUCKET_BACKUP }}
       REMOTE_HOST: ec2-18-142-37-231.ap-southeast-1.compute.amazonaws.com
+      REMOTE_USER: deploy
+      PROD_PATH: /home/deploy/bjj_app/current
+      SHARED_PATH: /home/deploy/bjj_app/shared
+      VENV_PATH: /home/deploy/bjj_app/shared/venv
+      DJANGO_SETTINGS: jiujitsuteria.settings.prod
+      MODELS: "bjj.Video bjj.Tag bjj.Position bjj.Technique bjj.Guard"
 
     steps:
       - name: Checkout repository
@@ -35,7 +41,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y jq
           python3 -m pip install --upgrade pip
-          pip install "boto3==1.38.37" "botocore>=1.38.37,<1.39.0" "s3transfer>=0.13.0,<0.14.0"
+          pip install "boto3==1.38.37" "botocore==1.38.37" "s3transfer==0.13.1"
           pip install -r requirements.txt
           pip install awscli
 
@@ -48,43 +54,57 @@ jobs:
 
       - name: Configure SSH key
         run: |
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-          eval "$(ssh-agent -s)"
-          ssh-add private_key.pem
-
-      - name: Add SSH host to known_hosts
-        run: |
           mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
           ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
 
-      - name: Ensure local Dev DB exists (handled by script)
+      - name: Ensure local Dev DB exists
         run: |
           if [ ! -f db.sqlite3 ]; then
-            echo "No local dev DB found — will be downloaded automatically by script if needed."
+            echo "Creating temporary SQLite DB for GitHub Actions..."
+            python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.dev
           fi
 
-      - name: Run Sync Data Script
+      - name: Check if Dev dump JSON exists in S3
         run: |
-          chmod +x scripts/sync_data.sh
-          if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then
-            echo "🔍 Running dry-run..."
-            ./scripts/sync_data.sh --dry-run
-          else
-            echo "🚀 Running full data sync..."
-            ./scripts/sync_data.sh
+          if ! aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" > /dev/null 2>&1; then
+            echo "❌ Dev app data JSON not found in S3. Please upload it first."
+            exit 1
           fi
+          echo "✅ Dev app data JSON exists in S3."
 
-      - name: Rotate old backups (keep latest 3)
+      - name: Download Dev dump JSON (for local validation)
+        run: aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" ./bjj_data.json
+
+      - name: Quick sanity check on JSON (optional)
         run: |
-          echo "🌀 Rotating old backups in S3..."
-          aws s3 ls "${{ env.AWS_BUCKET_BACKUP }}/" | sort -r | awk 'NR>3 {print $4}' | while read -r old_backup; do
-            if [ -n "$old_backup" ]; then
-              echo "Deleting old backup: $old_backup"
-              aws s3 rm "${{ env.AWS_BUCKET_BACKUP }}/$old_backup"
+          echo "🔍 Checking JSON structure..."
+          jq '.[0].model' bjj_data.json >/dev/null && echo "✅ JSON structure OK."
+
+      - name: Run sync logic remotely
+        run: |
+          echo "🚀 Starting remote sync job (${{ github.event.inputs.mode }})..."
+          ssh ${REMOTE_USER}@${REMOTE_HOST} bash -l -c "
+            set -euo pipefail
+            source ${VENV_PATH}/bin/activate || { echo '⚠️ venv not found at ${VENV_PATH}'; exit 1; }
+            cd ${PROD_PATH}
+            if [ '${{ github.event.inputs.mode }}' = 'dry-run' ]; then
+              echo '🔍 Performing dry-run sync...'
+              python3 manage.py dumpdata ${MODELS} --indent 2 --settings=${DJANGO_SETTINGS} | jq '.' > /dev/null
+            else
+              echo '📦 Performing full sync and backup rotation...'
+              BACKUP_FILE=backup_$(date +'%Y-%m-%d_%H-%M-%S').json
+              aws s3 cp s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json s3://${AWS_BUCKET_BACKUP}/$BACKUP_FILE
+              echo '✅ Backup stored to $BACKUP_FILE in ${AWS_BUCKET_BACKUP}'
+              aws s3 ls s3://${AWS_BUCKET_BACKUP}/ | sort | head -n -3 | awk '{print $4}' | while read old; do
+                [ -n \"$old\" ] && aws s3 rm s3://${AWS_BUCKET_BACKUP}/$old
+              done
+              python3 manage.py loaddata ${SHARED_PATH}/bjj_data.json --settings=${DJANGO_SETTINGS}
             fi
-          done
-          echo "✅ Backup rotation complete."
+          "
 
       - name: Sync Complete
         if: always()
