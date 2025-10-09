@@ -46,35 +46,25 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Configure SSH key
+        run: |
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          eval "$(ssh-agent -s)"
+          ssh-add private_key.pem
+
       - name: Add SSH host to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
 
-      - name: Ensure local Dev DB exists
+      - name: Ensure local Dev DB exists (handled by script)
         run: |
           if [ ! -f db.sqlite3 ]; then
-            echo "Creating temporary SQLite DB for GitHub Actions..."
-            python3 manage.py migrate --noinput --settings=jiujitsuteria.settings.dev
+            echo "No local dev DB found — will be downloaded automatically by script if needed."
           fi
 
-      - name: Check if Dev dump JSON exists in S3
-        run: |
-          if ! aws s3 ls "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" > /dev/null 2>&1; then
-            echo "❌ Dev app data JSON not found in S3. Please upload it first."
-            exit 1
-          fi
-          echo "✅ Dev app data JSON exists in S3."
-
-      - name: Download Dev dump JSON (for local validation)
-        run: aws s3 cp "s3://${AWS_BUCKET_DEV_DUMP}/bjj_data.json" ./bjj_data.json
-
-      - name: Quick sanity check on JSON (optional)
-        run: |
-          echo "🔍 Checking JSON structure..."
-          jq '.[0].model' bjj_data.json >/dev/null && echo "✅ JSON structure OK."
-
-      - name: Run sync_data.sh
+      - name: Run Sync Data Script
         run: |
           chmod +x scripts/sync_data.sh
           if [ "${{ github.event.inputs.mode }}" = "dry-run" ]; then
@@ -84,6 +74,17 @@ jobs:
             echo "🚀 Running full data sync..."
             ./scripts/sync_data.sh
           fi
+
+      - name: Rotate old backups (keep latest 3)
+        run: |
+          echo "🌀 Rotating old backups in S3..."
+          aws s3 ls "${{ env.AWS_BUCKET_BACKUP }}/" | sort -r | awk 'NR>3 {print $4}' | while read -r old_backup; do
+            if [ -n "$old_backup" ]; then
+              echo "Deleting old backup: $old_backup"
+              aws s3 rm "${{ env.AWS_BUCKET_BACKUP }}/$old_backup"
+            fi
+          done
+          echo "✅ Backup rotation complete."
 
       - name: Sync Complete
         if: always()

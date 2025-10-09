@@ -62,7 +62,33 @@ jobs:
           echo "MODE=$CONFIRM" >> $GITHUB_ENV
 
       - name: Add SSH host key to known_hosts
-        run: ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+
+      - name: Backup current PROD data (for rollback)
+        if: env.MODE == 'YES'
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          BACKUP_FILE="pre_restore_$(date +%Y%m%d_%H%M%S).json"
+          echo "Creating PROD backup before restore..."
+          ssh -i key.pem -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} bash -l -c "
+            set -euo pipefail
+            source ${VENV_PATH}/bin/activate
+            cd ${PROD_PATH}
+            python3 manage.py dumpdata ${MODELS} \
+              --natural-foreign --natural-primary --indent 2 \
+              --settings=${DJANGO_SETTINGS} > ${SHARED_PATH}/\$BACKUP_FILE
+            echo '✅ Backup file created: ${SHARED_PATH}/\$BACKUP_FILE'
+          "
+          echo "Uploading pre-restore backup to S3..."
+          scp -i key.pem -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST}:${SHARED_PATH}/\$BACKUP_FILE .
+          aws s3 cp \$BACKUP_FILE s3://${AWS_BUCKET_BACKUP}/
+          echo "✅ Pre-restore backup uploaded to S3: s3://${AWS_BUCKET_BACKUP}/\$BACKUP_FILE"
+          echo "PRE_RESTORE_BACKUP=\$BACKUP_FILE" >> $GITHUB_ENV
 
       - name: Resolve selected backup (or pick latest)
         id: resolve_backup
@@ -120,13 +146,28 @@ jobs:
           chmod 600 key.pem
           ssh -i key.pem -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} bash -l -c "
             set -euo pipefail
-            echo '🔄 Activating virtualenv and restoring...'
+            echo '🔄 Activating virtualenv and restoring allowed models...'
             source ${VENV_PATH}/bin/activate || { echo '⚠️ venv not found at ${VENV_PATH}'; exit 1; }
             cd ${PROD_PATH}
-            python3 manage.py loaddata ${SHARED_PATH}/restore.json --settings=${DJANGO_SETTINGS}
-            echo '✅ loaddata finished on remote'
+            python3 manage.py loaddata ${SHARED_PATH}/restore.json --settings=${DJANGO_SETTINGS} \
+              --exclude auth --exclude admin --exclude contenttypes --exclude sessions
+            echo '✅ loaddata finished on remote.'
           "
-          echo "✅ Remote restore command completed."
+          echo "✅ Remote restore completed."
+
+      - name: Rotate old backups (keep last 3)
+        run: |
+          echo "[*] Rotating backups on S3 (keeping latest 3)..."
+          TOTAL=$(aws s3 ls s3://${AWS_BUCKET_BACKUP}/ | wc -l)
+          if [ "$TOTAL" -gt 3 ]; then
+            REMOVE=$(aws s3 ls s3://${AWS_BUCKET_BACKUP}/ | sort | head -n -3 | awk '{print $4}')
+            for FILE in $REMOVE; do
+              echo "Deleting old backup: $FILE"
+              aws s3 rm s3://${AWS_BUCKET_BACKUP}/$FILE
+            done
+          else
+            echo "[*] No old backups to delete (total: $TOTAL)"
+          fi
 
       - name: Restart Gunicorn and Nginx (only in YES mode)
         if: env.MODE == 'YES'
@@ -152,5 +193,8 @@ jobs:
       - name: Restore Complete
         if: always()
         run: |
-          echo "✅ Backup restore job finished successfully (mode: ${{ env.MODE }}, file: ${{ env.BACKUP_FILE }})"
+          echo "✅ Backup restore job finished successfully"
+          echo "   • Mode: ${{ env.MODE }}"
+          echo "   • Restored file: ${{ env.BACKUP_FILE }}"
+          echo "   • Pre-restore backup: ${{ env.PRE_RESTORE_BACKUP }}"
 
