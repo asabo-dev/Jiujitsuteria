@@ -1,10 +1,11 @@
+{% extends "bjj/base.html" %}
+
 {% comment %}
 Video detail page.
+
 Development: videos are served from local media storage; thumbnails are unavailable.
 Production: videos use signed CloudFront URLs and thumbnails use their stored URL.
 {% endcomment %}
-
-{% extends "bjj/base.html" %}
 
 {% block title %}{{ video.title }} | Jiujitsuteria{% endblock %}
 

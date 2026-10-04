@@ -46,8 +46,11 @@ DATABASES = {
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# ---------------------
+# Local BJJ video storage
+# ---------------------
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR.parent / "media"
+MEDIA_ROOT = Path("/Users/quanefiom/desktop/BJJ/bjj_videos")
 
 
 # ---------------------

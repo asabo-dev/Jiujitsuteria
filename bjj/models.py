@@ -3,6 +3,7 @@ Development uses local video storage, while production uses
 CloudFront for video and thumbnail delivery.
 """
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -43,7 +44,7 @@ class Video(models.Model):
     title = models.CharField(max_length=200)
 
     # Existing database field containing the production video URL.
-    # Development converts this URL to a local media path.
+    # Development uses only the filename to locate the local video.
     video_url = models.URLField(
         help_text="CloudFront URL for the video file in production."
     )
@@ -87,15 +88,15 @@ class Video(models.Model):
         return self.title
 
     # -----------------------------
-    # Extract file path from URL
+    # Get video filename
     # -----------------------------
     @staticmethod
-    def _get_media_path(url):
-        """Extract the file path from a stored URL."""
+    def _get_video_filename(url):
+        """Get the filename from the stored production URL."""
         if not url:
             return None
 
-        return urlparse(url).path.lstrip("/")
+        return Path(urlparse(url).path).name
 
     # -----------------------------
     # Video URL
@@ -108,13 +109,29 @@ class Video(models.Model):
         if not self.video_url:
             return None
 
-        path = self._get_media_path(self.video_url)
-
-        # Development: serve video from local MEDIA_ROOT.
+        # Development: find the video in local storage.
         if settings.DEBUG:
-            return f"{settings.MEDIA_URL}{path}"
+            filename = self._get_video_filename(self.video_url)
 
-        # Production: serve video through signed CloudFront URL.
+            if not filename:
+                return None
+
+            matches = list(
+                Path(settings.MEDIA_ROOT).rglob(filename)
+            )
+
+            if not matches:
+                return None
+
+            relative_path = matches[0].relative_to(
+                settings.MEDIA_ROOT
+            )
+
+            return f"{settings.MEDIA_URL}{relative_path.as_posix()}"
+
+        # Production: use the original CloudFront path.
+        path = urlparse(self.video_url).path.lstrip("/")
+
         return generate_signed_url(path, expires_in=3600)
 
     # -----------------------------
