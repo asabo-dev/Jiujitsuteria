@@ -1,9 +1,13 @@
-"""Django models for managing BJJ Web App videos,
-with private video access via CloudFront signed URLs
-and public thumbnails served via a separate CloudFront distribution."""
+"""Django models for managing BJJ videos.
+Development uses local video storage, while production uses
+CloudFront for video and thumbnail delivery.
+"""
 
-from django.db import models
+from urllib.parse import urlparse
+
 from django.conf import settings
+from django.db import models
+
 from jiujitsuteria.utils.cloudfront import generate_signed_url
 
 
@@ -38,40 +42,97 @@ class Tag(models.Model):
 class Video(models.Model):
     title = models.CharField(max_length=200)
 
-    # Video file (stored in private S3 bucket, requires signed URL)
+    # Existing database field containing the production video URL.
+    # Development converts this URL to a local media path.
     video_url = models.URLField(
-        help_text="CloudFront or S3 URL to the video file (private bucket)"
+        help_text="CloudFront URL for the video file in production."
     )
 
-    # Thumbnail image (stored in public S3 bucket, no signing required)
+    # Existing database field containing the production thumbnail URL.
+    # Thumbnails are not currently available in local development.
     thumbnail_url = models.URLField(
         blank=True,
         null=True,
-        help_text="CloudFront URL to the thumbnail image (public bucket)"
+        help_text="CloudFront URL for the thumbnail in production."
     )
 
-    tags = models.ManyToManyField('Tag', related_name='videos', blank=True)
-    position = models.ForeignKey('Position', on_delete=models.SET_NULL, null=True, blank=True)
-    technique = models.ForeignKey('Technique', on_delete=models.SET_NULL, null=True, blank=True)
-    guard = models.ForeignKey('Guard', on_delete=models.SET_NULL, null=True, blank=True)
+    tags = models.ManyToManyField(
+        "Tag",
+        related_name="videos",
+        blank=True
+    )
+
+    position = models.ForeignKey(
+        "Position",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    technique = models.ForeignKey(
+        "Technique",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    guard = models.ForeignKey(
+        "Guard",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.title
 
     # -----------------------------
-    # CloudFront signed video URL
+    # Extract file path from URL
+    # -----------------------------
+    @staticmethod
+    def _get_media_path(url):
+        """Extract the file path from a stored URL."""
+        if not url:
+            return None
+
+        return urlparse(url).path.lstrip("/")
+
+    # -----------------------------
+    # Video URL
     # -----------------------------
     @property
     def signed_video_url(self):
-        """Return a CloudFront signed URL for the video file."""
+        """Return a local video URL in development or a signed
+        CloudFront URL in production.
+        """
         if not self.video_url:
             return None
-        path = self.video_url.split(f"{settings.CLOUDFRONT_DOMAIN}/")[-1]
+
+        path = self._get_media_path(self.video_url)
+
+        # Development: serve video from local MEDIA_ROOT.
+        if settings.DEBUG:
+            return f"{settings.MEDIA_URL}{path}"
+
+        # Production: serve video through signed CloudFront URL.
         return generate_signed_url(path, expires_in=3600)
 
     # -----------------------------
-    # Unsigned fallback (rarely used)
+    # Thumbnail URL
+    # -----------------------------
+    @property
+    def local_thumbnail_url(self):
+        """Return no thumbnail in development and the stored
+        CloudFront URL in production.
+        """
+        if settings.DEBUG:
+            return None
+
+        return self.thumbnail_url
+
+    # -----------------------------
+    # Unsigned CloudFront fallback
     # -----------------------------
     def cloudfront_url(self):
-        """Return an unsigned CloudFront URL as a fallback."""
+        """Return the stored video URL without signing it."""
         return self.video_url
