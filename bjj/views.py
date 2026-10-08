@@ -2,6 +2,9 @@
 Includes video upload, listing, categorization, and searching by tags."""
 
 import re
+from pathlib import Path
+
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
@@ -95,6 +98,25 @@ def videos_by_tag(request, tag_id):
 def video_detail(request, video_id):
     video = get_object_or_404(Video, id=video_id)
     return render(request, 'bjj/video_detail.html', {'video': video})
+
+
+def local_videos(request):
+    """List all video files found in local development storage."""
+    video_extensions = {".mp4", ".mov", ".webm", ".m4v"}
+
+    media_root = Path(settings.MEDIA_ROOT)
+
+    videos = [
+        path.relative_to(media_root)
+        for path in media_root.rglob("*")
+        if path.is_file() and path.suffix.lower() in video_extensions
+    ]
+
+    videos.sort(key=lambda path: str(path).lower())
+
+    return render(request, "bjj/local_videos.html", {
+        "videos": videos,
+    })
 
 
 """

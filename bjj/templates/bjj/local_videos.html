@@ -1,0 +1,45 @@
+{% extends "bjj/base.html" %}
+
+{% block title %}Local Videos | Jiujitsuteria{% endblock %}
+
+{% block meta_description %}
+Browse local BJJ video files available in development.
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="mb-4">
+        <h1>Local Videos</h1>
+        <p class="text-muted">
+            {{ videos|length }} video files found in local storage.
+        </p>
+    </div>
+
+    {% for video in videos %}
+        <div class="mb-5">
+            <h5>{{ video.name }}</h5>
+
+            <p class="text-muted small mb-2">
+                {{ video }}
+            </p>
+
+            <video
+                src="{{ media_url }}{{ video }}"
+                class="img-fluid"
+                controls
+                preload="none"
+                style="max-width: 700px;">
+            </video>
+        </div>
+
+        {% if not forloop.last %}
+            <hr class="my-4">
+        {% endif %}
+
+    {% empty %}
+        <p>No local video files were found.</p>
+    {% endfor %}
+</div>
+
+{% endblock %}

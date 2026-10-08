@@ -17,6 +17,9 @@ urlpatterns = [
     # Video detail
     path('video/<int:video_id>/', views.video_detail, name='video_detail'),
 
+    # Local development video browser
+    path('local-videos/', views.local_videos, name='local_videos'),
+
     # Video upload (staff only)
     path('upload/', views.upload_video, name='upload'),
 ]

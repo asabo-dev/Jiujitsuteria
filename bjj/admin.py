@@ -1,6 +1,10 @@
 """Admin configuration for BJJ video management with signed/unsigned
 CloudFront URL testing, previews, and status indicators."""
 
+from pathlib import Path
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Video, Position, Technique, Guard, Tag
@@ -11,32 +15,85 @@ from .models import Video, Position, Technique, Guard, Tag
 # -----------------------------
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
+
+    # Lightweight Admin display for development.
     list_display = (
         'title',
-        'signed_status',
-        'thumbnail_status',
-        'signed_video_link',
-        'unsigned_video_link',
-        'video_preview',
-        'thumbnail_preview',
+        'local_file_status',
+        'position',
+        'technique',
+        'guard',
     )
+
+    # -----------------------------
+    # Temporarily disabled fields
+    # -----------------------------
+    # These can be restored later for CloudFront testing.
+    #
+    # list_display = (
+    #     'title',
+    #     'signed_status',
+    #     'thumbnail_status',
+    #     'signed_video_link',
+    #     'unsigned_video_link',
+    #     'video_preview',
+    #     'thumbnail_preview',
+    # )
+    #
     readonly_fields = (
-        'signed_video_link',
-        'unsigned_video_link',
-        'video_preview',
-        'thumbnail_preview',
-    )
+    #     'signed_video_link',
+    #     'unsigned_video_link',
+         'video_preview',
+         'thumbnail_preview',
+     )
+
     list_filter = (
         'position',
         'technique',
         'guard',
         'tags',
     )
+
     search_fields = ('title',)
 
     # -----------------------------
     # Status Columns
     # -----------------------------
+
+    def local_file_status(self, obj):
+        """Show whether the video's local file exists."""
+        if not settings.DEBUG:
+            return "Production"
+
+        if not obj.video_url:
+            return format_html(
+                '<span style="color:red;">❌ Missing</span>'
+            )
+
+        filename = Path(urlparse(obj.video_url).path).name
+
+        if not filename:
+            return format_html(
+                '<span style="color:red;">❌ Missing</span>'
+            )
+
+        match = next(
+            Path(settings.MEDIA_ROOT).rglob(filename),
+            None
+        )
+
+        if match:
+            return format_html(
+                '<span style="color:green;">✔ Available</span>'
+            )
+
+        return format_html(
+            '<span style="color:red;">❌ Missing</span>'
+        )
+
+    local_file_status.short_description = "Local File"
+
+
     def signed_status(self, obj):
         """Show ✔️ or ❌ for signed video URL status."""
         if obj.signed_video_url:
@@ -74,22 +131,52 @@ class VideoAdmin(admin.ModelAdmin):
     # -----------------------------
     # Video Preview
     # -----------------------------
+
     def video_preview(self, obj):
+        """Show the video player on the individual edit page."""
         url = obj.signed_video_url
+
         if url:
-            return format_html('<video src="{}" width="300" controls></video>', url)
-        return "No video preview"
-    video_preview.short_description = 'Video Preview (Signed)'
+            return format_html(
+                '<video src="{}" width="500" controls></video>',
+                url
+            )
+
+        return "❌ No local video file"
+
+    video_preview.short_description = "Video Preview"
+
+    """Comment out signed_video_url for dev environment"""
+    #"def video_preview(self, obj):
+    #    url = obj.signed_video_url
+    #    if url:
+    #        return format_html('<video src="{}" width="300" controls></video>', url)
+    #    return "No video preview"
+    #video_preview.short_description = 'Video Preview (Signed)'
 
     # -----------------------------
     # Thumbnail Preview
     # -----------------------------
+
     def thumbnail_preview(self, obj):
+        """Show the thumbnail on the individual edit page."""
         url = obj.thumbnail_url
+
         if url:
-            return format_html('<img src="{}" width="150" style="border-radius:8px;" />', url)
+            return format_html(
+                '<img src="{}" width="150" style="border-radius:8px;" />',
+                url
+            )
+
         return "No thumbnail"
-    thumbnail_preview.short_description = 'Thumbnail Preview'
+
+    """Comment out for dev settings"""
+    #def thumbnail_preview(self, obj):
+    #    url = obj.thumbnail_url
+    #    if url:
+    #        return format_html('<img src="{}" width="150" style="border-radius:8px;" />', url)
+    #    return "No thumbnail"
+    #thumbnail_preview.short_description = 'Thumbnail Preview'
 
 
 # -----------------------------
